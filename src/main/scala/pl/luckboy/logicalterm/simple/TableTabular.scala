@@ -14,7 +14,13 @@ class TableTabular[T, U](implicit matcher: Matcher[T]) extends Tabular[Table[T, 
     }
   
   override def find(table: Table[T, U], term: T) =
-    findValuesWithIndexes(table, term, Matching.SupertermWithTerm).map { _.map { _._1 } }
+    findValuesWithIndexes(table, term, Matching.SupertermWithTerm).map {
+      _ match {
+        case Seq((value, _)) => value.success
+        case Seq()           => FindingFailure.NotFound.failure
+        case _               => FindingFailure.TooMany.failure
+      }
+    }
   
   override def add(table: Table[T, U], term: T, value: U): Validation[FatalError, Option[(Table[T, U], Option[U])]] = {
     val supertermPairListRes = findValuesWithIndexes(table, term, Matching.TermWithSuperterm)

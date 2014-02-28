@@ -5,9 +5,9 @@ trait Tabular[T, U, V]
 {
   def empty: T 
   
-  def find(table: T, term: U): Validation[FatalError, Option[V]]
+  def find(table: T, term: U): Validation[FatalError, Seq[V]]
   
-  def add(table: T, term: U, value: V): Validation[FatalError, Option[(T, Option[U])]]
+  def add(table: T, term: U, value: V): Validation[FatalError, Option[(T, Option[V])]]
   
   def size(table: T): Int
 }

@@ -1,7 +1,76 @@
 package pl.luckboy.logicalterm
+import scalaz._
+import scalaz.Scalaz._
 
 sealed trait Term
 {
+  def & (term: Term) =
+    (this, term) match {
+      case (Conjunction(terms), Conjunction(terms2)) => Conjunction(terms | terms2)
+      case (Conjunction(terms), _)                   => Conjunction(terms + term)
+      case (_, Conjunction(terms))                   => Conjunction(terms + this)
+      case (_, _)                                    => Conjunction(Set(this, term))
+    }
+
+  def | (term: Term) =
+    (this, term) match {
+      case (Disjunction(terms), Conjunction(terms2)) => Disjunction(terms | terms2)
+      case (Disjunction(terms), _)                   => Disjunction(terms + term)
+      case (_, Disjunction(terms))                   => Disjunction(terms + this)
+      case (_, _)                                    => Disjunction(Set(this, term))
+    }
+  
+  def normalizedTerm =
+    this match {
+      case Conjunction(terms) => terms.headOption.map { if(terms.size === 1) _ else this }.getOrElse(this)
+      case Disjunction(terms) => terms.headOption.map { if(terms.size === 1) _ else this }.getOrElse(this)
+      case _                  => this
+    }
+  
+  def distributedTerm =
+    this match {
+      case Conjunction(terms) =>
+        val (disjs, otherTerms) = terms.partition {
+          case Disjunction(ts) => ts.size > 1
+          case _               => false
+        }
+        disjs.headOption.flatMap {
+          case Disjunction(terms2) =>
+            terms2.headOption.flatMap {
+              term2 =>
+                val conj2 = Conjunction(disjs.tail | otherTerms).normalizedTerm
+                terms2.tail.headOption.map {
+                  _ =>
+                    val disj2 = Disjunction(terms2.tail).normalizedTerm
+                    (term2 & conj2) | (disj2 & conj2)
+                }
+            }
+          case _ =>
+            none
+        }
+      case Disjunction(terms) =>
+        val (conjs, otherTerms) = terms.partition {
+          case Conjunction(ts) => ts.size > 1
+          case _               => false
+        }
+        conjs.headOption.flatMap {
+          case Conjunction(terms2) =>
+            terms2.headOption.flatMap {
+              term2 =>
+                val disj2 = Disjunction(conjs.tail | otherTerms).normalizedTerm
+                terms2.tail.headOption.map {
+                  _ =>
+                    val conj2 = Conjunction(terms2.tail).normalizedTerm
+                    (term2 | disj2) & (conj2 | disj2)
+                }
+            }
+          case _ =>
+            none
+        }
+      case _ =>
+        none
+    }
+  
   private def toArgString: String =
     this match {
       case VarApp(_, args) if !args.isEmpty   => "(" + this + ")"
@@ -27,5 +96,5 @@ sealed trait Term
 }
 
 case class VarApp(varName: String, args: Seq[Term]) extends Term
-case class Conjunction[T, U](terms: Set[Term]) extends Term
-case class Disjunction[T, U](terms: Set[Term]) extends Term
+case class Conjunction(terms: Set[Term]) extends Term
+case class Disjunction(terms: Set[Term]) extends Term

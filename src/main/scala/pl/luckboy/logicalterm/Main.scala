@@ -3,7 +3,6 @@ import scala.annotation.tailrec
 import scalaz._
 import scalaz.Scalaz._
 import scala.tools.jline.console.ConsoleReader
-import pl.luckboy.logicalterm.simple.termMatcher
 
 object Main
 {
@@ -78,7 +77,7 @@ object Main
   }
   
   val executors = Map(
-      "simple" -> Executor.executor[Term, simple.TableP[Term]#A])
+      "simple" -> simpleExecutor)
   
   def main(args: Array[String]): Unit = {
     val execName = args.headOption.getOrElse("simple")

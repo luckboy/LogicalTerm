@@ -4,7 +4,6 @@ import org.scalatest.matchers.ShouldMatchers
 import scalaz._
 import scalaz.Scalaz._
 import pl.luckboy.logicalterm._
-import pl.luckboy.logicalterm.simple.termMatcher
 
 class ExecutorSpec extends FlatSpec with ShouldMatchers
 {
@@ -22,5 +21,5 @@ class ExecutorSpec extends FlatSpec with ShouldMatchers
     }
   }
   
-  "A simple Executor" should behave like executor(Executor.executor[Term, simple.TableP[Term]#A])
+  "A simpleExecutor" should behave like executor(simpleExecutor)
 }

@@ -60,7 +60,7 @@ abstract class Executor
 
 object Executor
 {
-  def executor[T, U[_]](implicit matcher: Matcher[T], tabular: Tabular[U, T]): Executor = {
+  def apply[T, U[_]](matcher: Matcher[T], tabular: Tabular[U, T]): Executor = {
     val matcher1 = matcher
     val tabular1 = tabular
     new Executor {
@@ -70,4 +70,6 @@ object Executor
       override implicit val tabular = tabular1
     }
   }
+  
+  def executor[T, U[_]](implicit matcher: Matcher[T], tabular: Tabular[U, T]) = apply(matcher, tabular)
 }

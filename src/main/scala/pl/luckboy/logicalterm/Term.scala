@@ -14,7 +14,7 @@ sealed trait Term
 
   def | (term: Term) =
     (this, term) match {
-      case (Disjunction(terms), Conjunction(terms2)) => Disjunction(terms | terms2)
+      case (Disjunction(terms), Disjunction(terms2)) => Disjunction(terms | terms2)
       case (Disjunction(terms), _)                   => Disjunction(terms + term)
       case (_, Disjunction(terms))                   => Disjunction(terms + this)
       case (_, _)                                    => Disjunction(Set(this, term))
@@ -22,9 +22,14 @@ sealed trait Term
   
   def normalizedTerm =
     this match {
-      case Conjunction(terms) => terms.headOption.map { if(terms.size === 1) _ else this }.getOrElse(this)
-      case Disjunction(terms) => terms.headOption.map { if(terms.size === 1) _ else this }.getOrElse(this)
-      case _                  => this
+      case Conjunction(terms) =>
+        val conj = terms.headOption.map { t => terms.foldLeft(Conjunction(Set(t))) { _ & _ } }.getOrElse(Conjunction(Set()))
+        terms.headOption.map { if(terms.size === 1) _ else conj }.getOrElse(conj)
+      case Disjunction(terms) =>
+        val disj = terms.headOption.map { t => terms.foldLeft(Disjunction(Set(t))) { _ | _ } }.getOrElse(Disjunction(Set()))
+        terms.headOption.map { if(terms.size === 1) _ else disj }.getOrElse(disj)
+      case _                  =>
+        this
     }
   
   def distributedTerm =

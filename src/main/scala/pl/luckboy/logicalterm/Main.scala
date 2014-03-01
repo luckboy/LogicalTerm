@@ -67,7 +67,7 @@ object Main
   }
   
   val executors = Map(
-      "simple" -> Executor[Term, simple.TableP[Term]#A](simple.termMatcher, simple.tableTabular[Term]))
+      "simple" -> Executor.executor[Term, simple.TableP[Term]#A])
   
   def main(args: Array[String]): Unit = {
     val executorName = args.headOption.getOrElse("simple")

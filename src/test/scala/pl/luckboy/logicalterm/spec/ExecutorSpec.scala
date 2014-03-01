@@ -99,6 +99,34 @@ class ExecutorSpec extends FlatSpec with ShouldMatchers
     it should "match the variable applications as term with superterm" in {
       e1("a (b1 & (b21 | b22)) c (d1 | d2) <= a ((b1 & b21) | (b1 & b22)) c (d1 | d2)") should be ===(MatchedTermResult.success)
     }
+    
+    it should "not match the terms" in {
+      e1("a & b | c = a | b & c") should be ===(MismatchedTermResult.success)
+      e1("a & c = a & b & c") should be ===(MismatchedTermResult.success)
+      e1("(a1 & a2) | (b1 & b2) | c1 = a1 & (b1 | b2) & (c1 | c2)") should be ===(MismatchedTermResult.success)
+      e1("a & (b1 | b2) & (c1 | c2) = a | (b1 & b2 & b3) | c | d") should be ===(MismatchedTermResult.success)
+    }
+    
+    it should "not match the terms as superterm with term" in {
+      e1("(a1 & a2) | b | (c1 & c2) >= a1 | b | c1") should be ===(MismatchedTermResult.success)
+      e1("(a1 | a2) & b & (c1 | c2) >= (a1 | a3) & b & (c1 | c2 | c3)") should be ===(MismatchedTermResult.success)
+    }
+    
+    it should "not match the terms as term with superterm" in {
+      e1("a | (b1 & b2) | c | d <= a | (b1 & b2 & b3) | d") should be ===(MismatchedTermResult.success)
+      e1("(a1 | a2) & (b1 | b2) & c <= a1 & (b1 | b3) & c") should be ===(MismatchedTermResult.success)
+    }
+    
+    it should "not match the terms these have the different variables" in {
+      e1("a & b & c = d & e") should be ===(MismatchedTermResult.success)
+      e1("a | b | c = d | e | f") should be ===(MismatchedTermResult.success)
+      e1("a & b & c >= d & e") should be ===(MismatchedTermResult.success)
+      e1("a | b | c <= d | e | f") should be ===(MismatchedTermResult.success)
+    }
+
+    it should "not match the variable applications" in {
+      e1("a (b | c) b (d & c) = a (b & c) b d") should be ===(MismatchedTermResult.success)
+    }
   }
   
   "A simpleExecutor" should behave like executor(simpleExecutor)

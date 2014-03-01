@@ -50,7 +50,7 @@ object Executor
   def apply[T, U[_]](matcher: Matcher[T], tabular: Tabular[U, T]): Executor = {
     val matcher1 = matcher
     val tabular1 = tabular
-    new Executor() {
+    new Executor {
       override type MatchingTerm = T
       override type Table[V] = U[V]
       override implicit val matcher = matcher1

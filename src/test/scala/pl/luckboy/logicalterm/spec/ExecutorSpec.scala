@@ -83,6 +83,22 @@ class ExecutorSpec extends FlatSpec with ShouldMatchers
       e1("a | b <= a | b | c") should be ===(MatchedTermResult.success)
       e1("a | b | c <= a | b | c | d | e") should be ===(MatchedTermResult.success)
     }
+    
+    it should "match the same terms as term with superterm" in {
+      e1("a | (b1 & (b21 | b22 | b23)) | (c1 | c2 | c3) <= a | (b1 & (b21 | b22 | b23)) | (c1 | c2 | c3)") should be ===(MatchedTermResult.success)
+      e1("(a1 | (a21 & a22)) | b | (c1 | c2 | c3) <= (a1 | (a21 & a22)) | b | (c1 | c2 | c3)") should be ===(MatchedTermResult.success)
+    }
+    
+    it should "match the different terms as term with superterm" in {
+      e1("((a1 | a2) & b & c1) | ((a1 | a2) & b & (c2 | c3)) <= (a1 | a2) & b & (c1 | c2 | c3)") should be ===(MatchedTermResult.success)
+      e1("a | (b1 & b2) | (c1 | (d1 & d2)) <= (a | b1 | (c1 | (d1 & d2))) & (a | b2 | (c1 | (d1 & d2)))") should be ===(MatchedTermResult.success)
+      e1("(b1 | (c1 & c2 & c3)) & (a | b21 | (c1 & c2)) & d <= a | (b1 & (b21 | b22)) | (c1 & c2)") should be ===(MatchedTermResult.success)
+      e1("(a1 | a2) & b & (c1 | c2 | c3) <= (a1 & (c1 | c2 | c3)) | ((a2 | a3) & b & (c1 | c2 | c3))") should be ===(MatchedTermResult.success)
+    }
+    
+    it should "match the variable applications as term with superterm" in {
+      e1("a (b1 & (b21 | b22)) c (d1 | d2) <= a ((b1 & b21) | (b1 & b22)) c (d1 | d2)") should be ===(MatchedTermResult.success)
+    }
   }
   
   "A simpleExecutor" should behave like executor(simpleExecutor)

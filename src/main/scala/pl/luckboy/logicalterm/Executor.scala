@@ -42,7 +42,20 @@ abstract class Executor
   def execute(instrs: List[Instruction])(table: Table[Int]) =
     instrs.foldLeft((table, List[Result]()).success[FatalError]) {
       (res, i) => res.flatMap { case (t, iReses) => executeInstruction(i)(t).map { case (t2, iRes) => (t2, iRes :: iReses) } }
-    }.map { case (t, iReses) => iReses.reverse }
+    }.map { case (t, iReses) => (t, iReses.reverse) }
+    
+  def executeInstructionString(s: String)(table: Table[Int]) =
+    for {
+      instr <- Parser.parseInstructionString(s)
+      pair <- executeInstruction(instr)(table)
+    } yield pair
+  
+  def executeString(s: String)(table: Table[Int]) =
+    for {
+      instrs <- Parser.parseString(s)
+      pair <- execute(instrs)(table)
+    } yield pair
+    
 }
 
 object Executor

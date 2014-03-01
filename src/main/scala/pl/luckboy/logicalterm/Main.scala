@@ -28,7 +28,7 @@ object Main
     }
   
   @tailrec
-  def mainLoop[T[_]](executor: Executor { type Table[U] = T[U] })(table: T[Int]): Unit = {
+  def mainLoop[T[_]](exec: Executor { type Table[U] = T[U] })(table: T[Int]): Unit = {
     consoleReader.setPrompt("logicalterm> ")
     val line = consoleReader.readLine()
     if(line =/= null) {
@@ -44,7 +44,7 @@ object Main
             case ("term", arg) =>
               Parser.parseTermString(arg).map {
                 term =>
-                  val matchingTerm = withTime { executor.matchingTermFromTerm(term) }
+                  val matchingTerm = withTime { exec.matchingTermFromTerm(term) }
                   consoleReader.println(matchingTerm.toString)
               }.valueOr { err => consoleReader.println(err.toString) }
               ExitFlag.NoExit
@@ -54,7 +54,7 @@ object Main
       }.getOrElse {
         Parser.parseInstructionString(line).map {
           instr =>
-            val table3 = withTime { executor.executeInstruction(instr)(table) }.map {
+            val table3 = withTime { exec.executeInstruction(instr)(table) }.map {
               case (table2, res) =>
                 consoleReader.println(res.toString)
                 table2
@@ -72,7 +72,7 @@ object Main
       }
       exitFlag match {
         case ExitFlag.Exit   => ()
-        case ExitFlag.NoExit => mainLoop[T](executor)(table4)
+        case ExitFlag.NoExit => mainLoop[T](exec)(table4)
       }
     }
   }
@@ -81,8 +81,8 @@ object Main
       "simple" -> Executor.executor[Term, simple.TableP[Term]#A])
   
   def main(args: Array[String]): Unit = {
-    val executorName = args.headOption.getOrElse("simple")
-    executors.get(executorName).map {
+    val execName = args.headOption.getOrElse("simple")
+    executors.get(execName).map {
       executor =>
         mainLoop[executor.Table](executor)(executor.emptyTable)
     }.getOrElse {

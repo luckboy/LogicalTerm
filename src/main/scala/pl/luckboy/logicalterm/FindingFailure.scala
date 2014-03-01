@@ -2,5 +2,6 @@ package pl.luckboy.logicalterm
 
 object FindingFailure extends Enumeration
 {
-  val NotFound, TooMany = Value
+  val NotFound = Value("not found")
+  val TooMany = Value("too many")
 }

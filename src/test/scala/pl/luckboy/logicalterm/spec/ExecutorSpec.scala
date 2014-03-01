@@ -55,6 +55,34 @@ class ExecutorSpec extends FlatSpec with ShouldMatchers
       e1("a | b | c >= a | b") should be ===(MatchedTermResult.success)
       e1("a | b | c | d | e >= a | b | c") should be ===(MatchedTermResult.success)
     }
+    
+    it should "match the same terms as superterm with term" in {
+      e1("(a1 & a2) | (b1 & (b21 | b22) & b3) | c >= (a1 & a2) | (b1 & (b21 | b22) & b3) | c") should be ===(MatchedTermResult.success)
+      e1("(a1 | a2 | a3) & (b1 | b2) & (c1 | c2) >= (a1 | a2 | a3) & (b1 | b2) & (c1 | c2)") should be ===(MatchedTermResult.success)
+    }
+    
+    it should "match the different terms as superterm with term" in {
+      e1("((a1 | a2) & b & c1) | ((a1 | a2) & b & (c2 | c3)) >= (a1 | a2) & b & (c1 | c2 | c3)") should be ===(MatchedTermResult.success)
+      e1("a | (b1 & b2) | (c1 | (d1 & d2)) >= (a | b1 | (c1 | (d1 & d2))) & (a | b2 | (c1 | (d1 & d2)))") should be ===(MatchedTermResult.success)
+      e1("(a1 | (b1 & b3) | c) & (a2 | b21 | b22 | c | d) >= (a1 & a2) | (b1 & (b21 | b22) & b3) | c") should be ===(MatchedTermResult.success)
+      e1("a & (b1 | b2 | b3) & (c1 | c2) >= (a & b1 & c1 & d) | (a & b2 & (c1 | c2))") should be ===(MatchedTermResult.success)
+    }
+    
+    it should "match the variable applications as superterm with term" in {
+      e1("a (b1 | b2) c (d1 & d2) >= a (b1 | b2) c (d1 & d2)") should be ===(MatchedTermResult.success)
+    }
+    
+    it should "match the conjunctions as term with superterm" in {
+      e1("a & b <= a & b") should be ===(MatchedTermResult.success)
+      e1("a & b & c <= a & b") should be ===(MatchedTermResult.success)
+      e1("a & b & c & d & e <= a & b & c") should be ===(MatchedTermResult.success)
+    }
+    
+    it should "match the disjunctions as term with superterm" in {
+      e1("a | b <= a | b") should be ===(MatchedTermResult.success)
+      e1("a | b <= a | b | c") should be ===(MatchedTermResult.success)
+      e1("a | b | c <= a | b | c | d | e") should be ===(MatchedTermResult.success)
+    }
   }
   
   "A simpleExecutor" should behave like executor(simpleExecutor)

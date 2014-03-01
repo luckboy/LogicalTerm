@@ -3,17 +3,17 @@ import scalaz._
 import scalaz.Scalaz._
 import pl.luckboy.logicalterm._
 
-class TableTabular[T, U](implicit matcher: Matcher[T]) extends Tabular[Table[T, U], T, U]
+class TableTabular[T](implicit matcher: Matcher[T]) extends Tabular[TableP[T]#A, T]
 {
-  override def empty = Table(Vector[(T, U)]())
+  override def empty[U] = Table(Vector[(T, U)]())
   
-  private def findValuesWithIndexes(table: Table[T, U], term: T, matching: Matching.Value) =
+  private def findValuesWithIndexes[U](table: Table[T, U], term: T, matching: Matching.Value) =
     table.pairs.zipWithIndex.foldLeft(Vector[(U, Int)]().success[FatalError]) {
       case (Success(ps), ((t, v), i)) => matcher.matches(term, t, matching).map { if(_) ps :+ (v, i) else ps }
       case (Failure(err), _)          => err.failure
     }
   
-  override def find(table: Table[T, U], term: T) =
+  override def find[U](table: Table[T, U], term: T) =
     findValuesWithIndexes(table, term, Matching.SupertermWithTerm).map {
       _ match {
         case Seq((value, _)) => value.success
@@ -22,7 +22,7 @@ class TableTabular[T, U](implicit matcher: Matcher[T]) extends Tabular[Table[T, 
       }
     }
   
-  override def add(table: Table[T, U], term: T, value: U): Validation[FatalError, Option[(Table[T, U], Option[U])]] = {
+  override def add[U](table: Table[T, U], term: T, value: U): Validation[FatalError, Option[(Table[T, U], Option[U])]] = {
     val supertermPairListRes = findValuesWithIndexes(table, term, Matching.TermWithSuperterm)
     val subtermPairListRes = findValuesWithIndexes(table, term, Matching.SupertermWithTerm)
     (for(ps1 <- supertermPairListRes; ps2 <- subtermPairListRes) yield (ps1, ps2)).map {
@@ -44,5 +44,5 @@ class TableTabular[T, U](implicit matcher: Matcher[T]) extends Tabular[Table[T, 
     }
   }
   
-  override def size(table: Table[T, U]) = table.pairs.size
+  override def size[U](table: Table[T, U]) = table.pairs.size
 }

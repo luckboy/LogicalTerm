@@ -1,13 +1,13 @@
 package pl.luckboy.logicalterm
 import scalaz._
 
-trait Tabular[T, U, V]
+trait Tabular[T[_], U]
 {
-  def empty: T 
+  def empty[V]: T[V] 
   
-  def find(table: T, term: U): Validation[FatalError, Validation[FindingFailure.Value, V]]
+  def find[V](table: T[V], term: U): Validation[FatalError, Validation[FindingFailure.Value, V]]
   
-  def add(table: T, term: U, value: V): Validation[FatalError, Option[(T, Option[V])]]
+  def add[V](table: T[V], term: U, value: V): Validation[FatalError, Option[(T[V], Option[V])]]
   
-  def size(table: T): Int
+  def size[V](table: T[V]): Int
 }

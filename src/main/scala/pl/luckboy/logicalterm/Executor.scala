@@ -34,7 +34,7 @@ abstract class Executor
         val value = tabular.size(table)
         tabular.add(table, matchingTerm, value).map {
           _.map {
-            case (table, oldValue) => oldValue.map { v => (table, ReplacedTermResult(v)) }.getOrElse((table, AddedValueResult))
+            case (table, oldValue) => oldValue.map { v => (table, ReplacedTermResult(v)) }.getOrElse((table, AddedValueResult(value)))
           }.getOrElse((table, NotAddedValueResult))
         }
     }

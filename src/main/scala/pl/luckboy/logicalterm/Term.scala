@@ -89,8 +89,8 @@ sealed trait Term
         }.mkString(" & ")
       case Disjunction(terms) =>
         terms.map {
-          case term @ (Disjunction(_) | Conjunction(_)) => term.toArgString
-          case term                                     => term.toString
+          case term @ Disjunction(_) => term.toArgString
+          case term                  => term.toString
         }.mkString(" | ")
     }
 }

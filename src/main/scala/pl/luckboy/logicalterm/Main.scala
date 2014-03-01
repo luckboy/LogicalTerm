@@ -17,7 +17,7 @@ object Main
   def withTime[T](f: => T) = {
     val startTime = System.currentTimeMillis
     val y = f
-    consoleReader.println("Time: " + ((System.currentTimeMillis - startTime) / 100.0))
+    consoleReader.println("Time: " + ((System.currentTimeMillis - startTime) / 1000.0) + "s")
     y
   }
   

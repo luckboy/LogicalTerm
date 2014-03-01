@@ -6,23 +6,23 @@ import scalaz.Scalaz._
 
 object Parser extends StandardTokenParsers with PackratParsers
 {
-  lexical.delimiters ++= List("(", ")", "&", "|", "=", "<=", ">=", "\n")
-  lexical.reserved ++= List("match", "find", "add")
+  lexical.delimiters ++= List("(", ")", "&", "|", "<=", ">=", "=", "\n")
+  lexical.reserved ++= List("find", "add")
   
   lazy val expr: PackratParser[Term] = expr1
   lazy val expr1 = expr2 ~ (("|" ~> expr2) *)			^^ { case t ~ ts => if(ts.isEmpty) t else Disjunction((t :: ts).toSet) }
   lazy val expr2 = expr3 ~ (("&" ~>  expr3) *)			^^ { case t ~ ts => if(ts.isEmpty) t else Conjunction((t :: ts).toSet) }
-  lazy val expr3: PackratParser[Term] = "(" ~> expr <~ ")" | varApp
-  lazy val varApp = ident ~ (expr3 *)					^^ { case s ~ ts => VarApp(s, ts.toVector) }
-  
-  lazy val exprPair = expr3 ~ expr3						^^ { case t1 ~ t2 => (t1, t2) }
-  
+  lazy val expr3 = varApp | expr4 
+  lazy val varApp = ident ~ (expr4 +)					^^ { case s ~ ts => VarApp(s, ts.toVector) }
+  lazy val expr4: PackratParser[Term] = "(" ~> expr <~ ")" | variable
+  lazy val variable = ident 							^^ { case s => VarApp(s, Vector()) }
+    
   lazy val instr = (
-      "match" ~> expr1 ~ ("=" ~> expr1)					^^ { case t1 ~ t2 => Match(t1, t2, Matching.Terms) }
-      | expr1 ~ (">=" ~> expr1)							^^ { case t1 ~ t2 => Match(t1, t2, Matching.SupertermWithTerm) }
-      | expr1 ~ ("<=" ~> expr1)							^^ { case t1 ~ t2 => Match(t1, t2, Matching.TermWithSuperterm) }
-      | "find" ~> expr1									^^ Find
-      | "add" ~> expr1									^^ Add)
+      expr ~ ("=" ~> expr)								^^ { case t1 ~ t2 => Match(t1, t2, Matching.Terms) }
+      | expr ~ (">=" ~> expr)							^^ { case t1 ~ t2 => Match(t1, t2, Matching.SupertermWithTerm) }
+      | expr ~ ("<=" ~> expr)							^^ { case t1 ~ t2 => Match(t1, t2, Matching.TermWithSuperterm) }
+      | "find" ~> expr									^^ Find
+      | "add" ~> expr									^^ Add)
   
   lazy val instrs = instr ~ (("\n" ~> instr) *)			^^ { case i ~ is => i :: is }
   

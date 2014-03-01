@@ -29,11 +29,12 @@ object Main
   
   @tailrec
   def mainLoop[T[_]](executor: Executor { type Table[U] = T[U] })(table: T[Int]): Unit = {
-    consoleReader.setPrompt("logicalterm>")
+    consoleReader.setPrompt("logicalterm> ")
     val line = consoleReader.readLine()
     if(line =/= null) {
-      val exitFlag = parseCommand(line).map {
-        _ match {
+      val (table4, exitFlag) = parseCommand(line).map {
+        pair =>
+          (table, pair match {
             case ("help", _)   =>
               consoleReader.println("Commands:")
               consoleReader.println(":help           display this text")
@@ -49,19 +50,29 @@ object Main
               ExitFlag.NoExit
             case ("quit", _)   =>
               ExitFlag.Exit
-          }
+          })
       }.getOrElse {
         Parser.parseInstructionString(line).map {
           instr =>
-            withTime { executor.executeInstruction(instr)(table) }.map {
-              res => consoleReader.println(res.toString)
-            }.valueOr { err => consoleReader.println(err.toString) }
-            ExitFlag.NoExit
+            val table3 = withTime { executor.executeInstruction(instr)(table) }.map {
+              case (table2, res) =>
+                consoleReader.println(res.toString)
+                table2
+            }.valueOr {
+              err =>
+                consoleReader.println(err.toString)
+                table
+            }
+            (table3, ExitFlag.NoExit)
+        }.valueOr { 
+          err =>
+            consoleReader.println(err.toString)
+            (table, ExitFlag.NoExit)
         }
       }
       exitFlag match {
         case ExitFlag.Exit   => ()
-        case ExitFlag.NoExit => mainLoop[T](executor)(table)
+        case ExitFlag.NoExit => mainLoop[T](executor)(table4)
       }
     }
   }

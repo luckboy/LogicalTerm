@@ -27,51 +27,78 @@ object Main
     }
   
   @tailrec
+  def readStringLoop(s: String): String = {
+    val line = consoleReader.readLine()
+    if(line =/= null) readStringLoop(s + line + "\n") else s
+  }
+  
+  def readString() = {
+    val savedPrompt = consoleReader.getPrompt()
+    consoleReader.setPrompt("")
+    val s = readStringLoop("")
+    consoleReader.setPrompt(savedPrompt)
+    s
+  }
+  
+  @tailrec
   def mainLoop[T[_]](exec: Executor { type Table[U] = T[U] })(table: T[Int]): Unit = {
     consoleReader.setPrompt("logicalterm> ")
     val line = consoleReader.readLine()
     if(line =/= null) {
-      val (table4, exitFlag) = parseCommand(line).map {
+      val (table3, exitFlag) = parseCommand(line).map {
         pair =>
-          (table, pair match {
+           pair match {
             case ("help", _)   =>
               consoleReader.println("Commands:")
               consoleReader.println(":help           display this text")
-              consoleReader.println(":term <term>    display the term")
+              consoleReader.println(":paste          enter the paste mode (exit from this mode is Ctrl-D)")
               consoleReader.println(":quit           exit this program")
-              ExitFlag.NoExit
+              consoleReader.println(":term <term>    display the term")
+              (table, ExitFlag.NoExit)
+            case ("paste", _)  =>
+              val s = readString()
+              (Parser.parseString(s).flatMap {
+                instrs =>
+                  withTime { exec.execute(instrs)(table) }.map {
+                    case (table2, reses) =>
+                      for(res <- reses) { consoleReader.println(res.toString) }
+                      table2
+                  }
+              }.valueOr { 
+                err =>
+                  consoleReader.println(err.toString)
+                  table
+              }, ExitFlag.NoExit)
+            case ("quit", _)   =>
+              (table, ExitFlag.Exit)
             case ("term", arg) =>
               Parser.parseTermString(arg).map {
                 term =>
                   val matchingTerm = withTime { exec.matchingTermFromTerm(term) }
                   consoleReader.println(matchingTerm.toString)
               }.valueOr { err => consoleReader.println(err.toString) }
-              ExitFlag.NoExit
-            case ("quit", _)   =>
-              ExitFlag.Exit
-          })
+              (table, ExitFlag.NoExit)
+            case _             =>
+              consoleReader.println("unknown command " + line)
+              (table, ExitFlag.NoExit)
+          }
       }.getOrElse {
-        Parser.parseInstructionString(line).map {
+        (Parser.parseInstructionString(line).flatMap {
           instr =>
-            val table3 = withTime { exec.executeInstruction(instr)(table) }.map {
+            withTime { exec.executeInstruction(instr)(table) }.map {
               case (table2, res) =>
                 consoleReader.println(res.toString)
                 table2
-            }.valueOr {
-              err =>
-                consoleReader.println(err.toString)
-                table
             }
-            (table3, ExitFlag.NoExit)
         }.valueOr { 
           err =>
             consoleReader.println(err.toString)
-            (table, ExitFlag.NoExit)
-        }
+            table
+        }, ExitFlag.NoExit)
       }
       exitFlag match {
         case ExitFlag.Exit   => ()
-        case ExitFlag.NoExit => mainLoop[T](exec)(table4)
+        case ExitFlag.NoExit => mainLoop[T](exec)(table3)
       }
     }
   }

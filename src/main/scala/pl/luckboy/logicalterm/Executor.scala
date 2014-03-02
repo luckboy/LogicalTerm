@@ -31,7 +31,7 @@ abstract class Executor
         }
       case Add(term) =>
         val matchingTerm = matcher.matchingTermFromTerm(term)
-        val value = tabular.size(table)
+        val value = tabular.size(table) + 1
         tabular.add(table, matchingTerm, value).map {
           _.map {
             case (table, oldValue) => oldValue.map { v => (table, ReplacedTermResult(v)) }.getOrElse((table, AddedValueResult(value)))

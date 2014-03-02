@@ -6,7 +6,7 @@ import scalaz.Scalaz._
 
 object Parser extends StandardTokenParsers with PackratParsers
 {
-  lexical.delimiters ++= List("(", ")", "&", "|", "<=", ">=", "=", "\n")
+  lexical.delimiters ++= List("(", ")", "&", "|", "<=", ">=", "=")
   lexical.reserved ++= List("find", "add")
   
   lazy val expr: PackratParser[Term] = expr1
@@ -23,9 +23,7 @@ object Parser extends StandardTokenParsers with PackratParsers
       | expr ~ ("<=" ~> expr)							^^ { case t1 ~ t2 => Match(t1, t2, Matching.TermWithSuperterm) }
       | "find" ~> expr									^^ Find
       | "add" ~> expr									^^ Add)
-  
-  lazy val instrs = instr ~ (("\n" ~> instr) *)			^^ { case i ~ is => i :: is }
-  
+    
   def parseTermString(s: String): Validation[AbstractError, Term] =
     phrase(expr)(new lexical.Scanner(s)) match {
       case Success(term, _)   => term.success
@@ -41,9 +39,7 @@ object Parser extends StandardTokenParsers with PackratParsers
     }
 
   def parseString(s: String): Validation[AbstractError, List[Instruction]] =
-    phrase(instrs)(new lexical.Scanner(s)) match {
-      case Success(instrs, _)  => instrs.success
-      case Failure(msg, next) => pl.luckboy.logicalterm.Error(msg, next.pos).failure
-      case Error(msg, next)   => pl.luckboy.logicalterm.FatalError(msg, next.pos).failure
-    }
+    s.split("\n").foldLeft(List[Instruction]().success[AbstractError]) {
+      (res, line) => res.flatMap { is => parseInstructionString(line).map { _ :: is } }
+    }.map { _.reverse }
 }

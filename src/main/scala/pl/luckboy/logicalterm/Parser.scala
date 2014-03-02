@@ -39,7 +39,7 @@ object Parser extends StandardTokenParsers with PackratParsers
     }
 
   def parseString(s: String): Validation[AbstractError, List[Instruction]] =
-    s.split("\n").foldLeft(List[Instruction]().success[AbstractError]) {
+    s.split("\n").flatMap { t => if(t.matches("^\\s*$")) Nil else List(t) }.foldLeft(List[Instruction]().success[AbstractError]) {
       (res, line) => res.flatMap { is => parseInstructionString(line).map { _ :: is } }
     }.map { _.reverse }
 }

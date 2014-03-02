@@ -254,6 +254,48 @@ add a3
           e1("find a2 (g | h | d) (b & c1)", table) should be ===(FoundValueResult(4).success)
       }
     }
+    
+    it should "not find a value at the empty table" in {
+      e1("find a & b") should be ===(NotFoundValueResult(FindingFailure.NotFound).success)
+      e1("find a | b | c") should be ===(NotFoundValueResult(FindingFailure.NotFound).success)
+    }
+    
+    it should "not find a value for the term" in {
+      inside(execute("""
+add a1 | b | (c1 & c2 & (c31 | c32))
+add a2 | b | ((c31 | c33) & c4)
+""")) {
+        case Success((table, _)) =>
+          e1("find a3 | b | c5", table) should be ===(NotFoundValueResult(FindingFailure.NotFound).success)
+          e1("find (c31 | c33 | c34) & c5", table) should be ===(NotFoundValueResult(FindingFailure.NotFound).success)
+      }
+    }
+    
+    it should "not find a value for the subterm" in {
+      inside(execute("""
+add (a1 & a2) | b | (c1 & c2 & (c31 | c32))
+add (d1 | (d21 & d22)) & e & (f1 | f2)
+""")) {
+        case Success((table, _)) =>
+          e1("find (a1 & a2 & a3) | (c1 & c2 & c32)", table) should be ===(NotFoundValueResult(FindingFailure.NotFound).success)
+          e1("find ((d1 | (d21 & d22)) & e & f1) | ((d1 | (d21 & d22)) & e & f2 & f3)", table) should be ===(NotFoundValueResult(FindingFailure.NotFound).success)
+      }
+    }
+    
+    it should "not find a value because too many terms are matched to the term of a value" in {
+      inside(execute("""
+add (a1 & a2) | b | c
+add (a1 | b | c) & (a3 | b | c) 
+add (a2 & a4) | b | c
+add d & (e1 | e2)
+add (d & e3) | (d & e4)
+""")) {
+        case Success((table, _)) =>
+          e1("find a1 | b | c", table) should be ===(NotFoundValueResult(FindingFailure.TooMany).success)
+          e1("find a2 | b | c", table) should be ===(NotFoundValueResult(FindingFailure.TooMany).success)
+          e1("find d", table) should be ===(NotFoundValueResult(FindingFailure.TooMany).success)
+      }
+    }
   }
   
   "A simpleExecutor" should behave like executor(simpleExecutor)

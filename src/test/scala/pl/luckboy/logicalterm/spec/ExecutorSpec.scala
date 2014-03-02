@@ -250,7 +250,7 @@ add a3
         case Success((table, _)) =>
           e1("find a1 (b & c) d ((b & d) | (b & e))", table) should be ===(FoundValueResult(1).success)
           e1("find a1 (b & c) b (c & f)", table) should be ===(FoundValueResult(2).success)
-          e1("find a2 (g | h) ((b & c1 & d) | (b & c2 &d))", table) should be ===(FoundValueResult(3).success)
+          e1("find a2 (g | h) ((b & c1 & d) | (b & c2 & d))", table) should be ===(FoundValueResult(3).success)
           e1("find a2 (g | h | d) (b & c1)", table) should be ===(FoundValueResult(4).success)
       }
     }
@@ -294,6 +294,48 @@ add (d & e3) | (d & e4)
           e1("find a1 | b | c", table) should be ===(NotFoundValueResult(FindingFailure.TooMany).success)
           e1("find a2 | b | c", table) should be ===(NotFoundValueResult(FindingFailure.TooMany).success)
           e1("find d", table) should be ===(NotFoundValueResult(FindingFailure.TooMany).success)
+      }
+    }
+    
+    it should "not add a value because too many terms are matched to the term of a value" in {
+      inside(execute("""
+add (a1 & a2) | b | c
+add (a1 | b | c) & (a3 | b | c)
+add (a2 & a4) | b | c
+add d & (e1 | e2)
+add (d & e1) | (d & e3)
+add d & (e2 | e4)
+""")) {
+        case Success((table, _)) =>
+          e1("add a1 | b | c", table) should be ===(NotAddedValueResult.success)
+          e1("add a2 | b | c", table) should be ===(NotAddedValueResult.success)
+          e1("add d & e1", table) should be ===(NotAddedValueResult.success)
+          e1("add d & e2", table) should be ===(NotAddedValueResult.success)
+      }
+    }
+    
+    it should "not find a value for the variable application" in {
+       inside(execute("""
+add a1 (b & c) d (b & (d | e))
+add a1 (b & c) b (c & f)
+add a2 (g | h) (b & (c1 | c2) & d)
+add a2 (g | h | d) (b & c1)
+add a3
+""")) {
+        case Success((table, _)) =>
+          e1("find a1 (b & d) d ((b & c) | (b & e))", table) should be ===(NotFoundValueResult(FindingFailure.NotFound).success)
+          e1("find a1 (b & c) d (c & f)", table) should be ===(NotFoundValueResult(FindingFailure.NotFound).success)
+          e1("find a2 (g | h) ((b & c1 & d) | (b & c2))", table) should be ===(NotFoundValueResult(FindingFailure.NotFound).success)
+          e1("find a2 (g | h) (b & c1)", table) should be ===(NotFoundValueResult(FindingFailure.NotFound).success)
+      }
+    }
+    
+    it should "replace the variable application" in {
+       inside(execute("""
+add a1 (b & c) d (b | d)
+""")) {
+        case Success((table, _)) =>
+          e1("add a1 (b & c) d (b | d)", table) should be ===(ReplacedTermResult(1).success)
       }
     }
   }

@@ -170,7 +170,7 @@ add c3 & (d1 | d2)
         AddedValueResult(3)).success)
     }
     
-    it should "replace the terms these are superterms or equaled for themselves" in {
+    it should "replace the terms these are superterms or equal for themselves" in {
        e("""
 add (a1 & a2) | b1 | (c1 & (c21 | c22) & c3)
 add a1 | (b1 & b2) | c21 | c22
@@ -187,6 +187,72 @@ add (e1 | e2) & (g1 | g2) & (h1 | h21)
         AddedValueResult(3),
         ReplacedTermResult(3),
         ReplacedTermResult(3)).success)
+    }
+    
+    it should "add values with the terms these haven't shared variables" in {
+e("""
+add (a1 | a2) & (b1 | (b21 & b22))
+add c | (d1 & d2) | e
+add (f1 | f2 | f3) & (g1 | g2) & h
+""") should be ===(List(
+        AddedValueResult(1),
+        AddedValueResult(2),
+        AddedValueResult(3)).success)
+    }
+    
+    it should "find the value for the equal term" in {
+      inside(execute("""
+add a | (b1 & b2 & b3) | (c1 & (c21 | c22))
+add (d1 | d2 | d3) & e & (f1 | (f21 | f22) | f3)
+""")) {
+        case Success((table, _)) =>
+          e1("find a | (b1 & b2 & b3) | (c1 & (c21 | c22))", table) should be ===(FoundValueResult(1).success)
+          e1("find (a | b1 | ((c1 & c21) | (c1 & c22))) & (a | (b2  & b3) | (c1 & (c21 | c22)))", table) should be ===(FoundValueResult(1).success)
+          e1("find (d1 & e & (f1 | (f21 | f22) | f3)) | ((d2 | d3) & e & (f1 | (f21 | f22) | f3))", table) should be ===(FoundValueResult(2).success)
+          e1("find (d1 | d2 | d3) & e & (f1 | (f21 | f22) | f3)", table) should be ===(FoundValueResult(2).success)
+      }
+    }
+    
+    it should "find the value for the superterm" in {
+      inside(execute("""
+add (a1 & a2) | b | (c1 & (c21 | c22) & c3)
+add (d1 | d2) & (e1 | (e21 & e22)) & (f1 | f2)
+""")) {
+        case Success((table, _)) =>
+          e1("find (a1 | b | (c1 & c21 & c3) | (c1 & c22)) & (a2 | b | (c1 & (c21 | c22)))", table) should be ===(FoundValueResult(1).success)
+          e1("find a2 | b | ((c21 | c22) & c3)", table) should be ===(FoundValueResult(1).success)
+          e1("find (e1 | (e21 & e22)) & (f1 | f2)", table) should be ===(FoundValueResult(2).success)
+          e1("find ((d1 | d2 | d3) & e1 & (f1 | f2)) | ((d1 | d2) & e21 & e22 & (f1 | f2 | f3))", table) should be ===(FoundValueResult(2).success)
+      }
+    }
+    
+    it should "add values with the variable applications" in {
+      e("""
+add a1 (b & c) d (b & (d | e))
+add a1 (b & c) b (c & f)
+add a2 (g | h) (b & (c1 | c2) & d)
+add a2 (g | h | d) (b & c1)
+""") should be ===(List(
+        AddedValueResult(1),
+        AddedValueResult(2),
+        AddedValueResult(3),
+        AddedValueResult(4)).success)
+    }
+    
+    it should "find the value for the variable application" in {
+      inside(execute("""
+add a1 (b & c) d (b & (d | e))
+add a1 (b & c) b (c & f)
+add a2 (g | h) (b & (c1 | c2) & d)
+add a2 (g | h | d) (b & c1)
+add a3
+""")) {
+        case Success((table, _)) =>
+          e1("find a1 (b & c) d ((b & d) | (b & e))", table) should be ===(FoundValueResult(1).success)
+          e1("find a1 (b & c) b (c & f)", table) should be ===(FoundValueResult(2).success)
+          e1("find a2 (g | h) ((b & c1 & d) | (b & c2 &d))", table) should be ===(FoundValueResult(3).success)
+          e1("find a2 (g | h | d) (b & c1)", table) should be ===(FoundValueResult(4).success)
+      }
     }
   }
   

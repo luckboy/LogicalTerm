@@ -1,4 +1,5 @@
 package pl.luckboy.logicalterm
+import scala.util.parsing.input.NoPosition
 import scalaz._
 import scalaz.Scalaz._
 
@@ -19,28 +20,35 @@ abstract class Executor
   def executeInstruction(instr: Instruction)(table: Table[Int]) =
     instr match {
       case Match(term1, term2, matching) =>
-        val matchingTerm1 = matcher.matchingTermFromTerm(term1)
-        val matchingTerm2 = matcher.matchingTermFromTerm(term2)
-        matcher.matches(matchingTerm1, matchingTerm2, matching).map {
-          b => (table, if(b) MatchedTermResult else MismatchedTermResult)
-        }
+        (for {
+          matchingTerm1 <- matcher.matchingTermFromTerm(term1)
+          matchingTerm2 <- matcher.matchingTermFromTerm(term2)
+        } yield {
+          matcher.matches(matchingTerm1, matchingTerm2, matching).map {
+            b => (table, if(b) MatchedTermResult else MismatchedTermResult)
+          }
+        }).getOrElse(Error("unmatchable term", NoPosition).failure)
       case Find(term) =>
-        val matchingTerm = matcher.matchingTermFromTerm(term)
-        tabular.find(table, matchingTerm).map {
-          res => (table, res.map { FoundValueResult(_) }.valueOr { NotFoundValueResult(_) })
-        }
+        matcher.matchingTermFromTerm(term).map {
+          matchingTerm =>
+            tabular.find(table, matchingTerm).map {
+              res => (table, res.map { FoundValueResult(_) }.valueOr { NotFoundValueResult(_) })
+            }
+        }.getOrElse(Error("unmatchable term", NoPosition).failure)
       case Add(term) =>
-        val matchingTerm = matcher.matchingTermFromTerm(term)
-        val value = tabular.size(table) + 1
-        tabular.add(table, matchingTerm, value).map {
-          _.map {
-            case (table, oldValue) => oldValue.map { v => (table, ReplacedTermResult(v)) }.getOrElse((table, AddedValueResult(value)))
-          }.getOrElse((table, NotAddedValueResult))
-        }
+        matcher.matchingTermFromTerm(term).map {
+          matchingTerm =>
+            val value = tabular.size(table) + 1
+            tabular.add(table, matchingTerm, value).map {
+              _.map {
+                case (table, oldValue) => oldValue.map { v => (table, ReplacedTermResult(v)) }.getOrElse((table, AddedValueResult(value)))
+              }.getOrElse((table, NotAddedValueResult))
+            }
+        }.getOrElse(Error("unmatchable term", NoPosition).failure)
     }
   
   def execute(instrs: List[Instruction])(table: Table[Int]) =
-    instrs.foldLeft((table, List[Result]()).success[FatalError]) {
+    instrs.foldLeft((table, List[Result]()).success[AbstractError]) {
       (res, i) => res.flatMap { case (t, iReses) => executeInstruction(i)(t).map { case (t2, iRes) => (t2, iRes :: iReses) } }
     }.map { case (t, iReses) => (t, iReses.reverse) }
     
@@ -54,8 +62,7 @@ abstract class Executor
     for {
       instrs <- Parser.parseString(s)
       pair <- execute(instrs)(table)
-    } yield pair
-    
+    } yield pair   
 }
 
 object Executor

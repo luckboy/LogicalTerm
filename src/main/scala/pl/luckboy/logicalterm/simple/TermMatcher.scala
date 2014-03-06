@@ -5,7 +5,7 @@ import pl.luckboy.logicalterm._
 
 class TermMatcher extends Matcher[Term]
 {
-  override def matchingTermFromTerm(term: Term) = term
+  override def matchingTermFromTerm(term: Term) = some(term)
   
   private def matchesForOneTerm(term: Term, terms: Set[Term], matching: Matching.Value) =
     terms.foldLeft(false) {

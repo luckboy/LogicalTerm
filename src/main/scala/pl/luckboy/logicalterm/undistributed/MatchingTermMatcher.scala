@@ -45,7 +45,10 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         false
     }
   }
-    
-  override def matches(term1: MatchingTerm, term2: MatchingTerm, matching: Matching.Value): Validation[FatalError, Boolean] =
+  
+  override def matches(term1: MatchingTerm, term2: MatchingTerm, matching: Matching.Value) = {
+    // term1.root is superconjunction node
+    // term2.root is conjunction node
     matchesTermNodes(term1.root, term1, term2.root, term2).success
+  }
 }

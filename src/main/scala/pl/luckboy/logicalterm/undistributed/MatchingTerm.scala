@@ -10,7 +10,6 @@ case class MatchingTerm(
     varIdxs: Map[String, List[Int]],
     varArgs: Map[String, Vector[MatchingTerm]])
 
-
 case class TermNode(
     childs: SortedMap[TermNodeRange, TermNode],
     firstVarName: String)

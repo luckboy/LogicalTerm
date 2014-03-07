@@ -7,7 +7,8 @@ import pl.luckboy.logicalterm.Term
 
 case class MatchingTerm(
     root: TermNode,
-    varIdxs: Map[String, List[Int]])
+    varIdxs: Map[String, List[Int]],
+    varArgs: Map[String, Vector[MatchingTerm]])
 
 
 case class TermNode(

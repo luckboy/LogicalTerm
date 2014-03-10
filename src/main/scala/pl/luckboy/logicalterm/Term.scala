@@ -86,7 +86,7 @@ sealed trait Term
   
   override def toString =
     this match {
-      case VarApp(varName, args) => varName + args.map { " " + _.toArgString }.mkString
+      case VarApp(name, args) => name + args.map { " " + _.toArgString }.mkString
       case Conjunction(terms) =>
         terms.map {
           case term @ (Disjunction(_) | Conjunction(_)) => term.toArgString

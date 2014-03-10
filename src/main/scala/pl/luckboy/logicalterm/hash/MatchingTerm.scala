@@ -57,17 +57,19 @@ sealed trait MatchingTerm
   
   def normalizedTerm =
     this match {
-      case Conjunction(terms) =>
-        terms.headOption.flatMap {
-          case (_, terms2) =>
-            if(terms.size === 1) terms2.headOption.map { if(terms2.size === 1) _ else this } else none
-        }.getOrElse(this)
-      case Disjunction(terms) =>
-        terms.headOption.flatMap {
-          case (_, terms2) =>
-            if(terms.size === 1) terms2.headOption.map { if(terms2.size === 1) _ else this } else none
-        }.getOrElse(this)
-      case _                  =>
+      case conj: Conjunction =>
+        val terms2 = conj.termIterable.foldLeft(Set[MatchingTerm]()) {
+          case (ts, conj2: Conjunction) => ts ++ conj2.termIterable
+          case (ts, term)               => ts + term
+        }
+        terms2.headOption.map { if(terms2.size === 1) _ else Conjunction.fromIterable(terms2) }.getOrElse(Conjunction.fromIterable(terms2))
+      case disj: Disjunction =>
+        val terms2 = disj.termIterable.foldLeft(Set[MatchingTerm]()) {
+          case (ts, disj2: Disjunction) => ts ++ disj2.termIterable
+          case (ts, term)               => ts + term
+        }
+        terms2.headOption.map { if(terms2.size === 1) _ else Disjunction.fromIterable(terms2) }.getOrElse(Disjunction.fromIterable(terms2))
+      case _                 =>
         this
     }
   

@@ -13,15 +13,11 @@ object Utils
   
   def filterTermsFromSuperterm(terms: IntMap[List[MatchingTerm]], superterm: MatchingTerm) = {
     val hashCode = superterm.lazyHashCode
-    terms.get(hashCode).getOrElse {
-      terms.flatMap { case (hc, ts) => if(matchesSuperHashCodeWithHashCode(hashCode, hc)) ts else Nil }
-    }
+    terms.flatMap { case (hc, ts) => if(matchesSuperHashCodeWithHashCode(hashCode, hc)) ts else Nil }
   }
 
   def filterSupertermsFromTerm(superterms: IntMap[List[MatchingTerm]], term: MatchingTerm) = {
     val hashCode = term.lazyHashCode
-    superterms.get(hashCode).getOrElse {
-      superterms.flatMap { case (hc, ts) => if(matchesSuperHashCodeWithHashCode(hc, hashCode)) ts else Nil }
-    }
+    superterms.flatMap { case (hc, ts) => if(matchesSuperHashCodeWithHashCode(hc, hashCode)) ts else Nil }
   }
 }

@@ -18,13 +18,13 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         Conjunction(terms.foldLeft(IntMap[List[MatchingTerm]]()) {
           (terms2, term) =>
             val term2 = recursivelyMatchingTermFromTerm(term)
-            terms2 + (term2.lazyHashCode, term2 :: terms2.getOrElse(term2.lazyHashCode, Nil))
+            terms2 + (term2.lazyHashCode -> (term2 :: terms2.getOrElse(term2.lazyHashCode, Nil)))
         })
       case logicalterm.Disjunction(terms) =>
         Disjunction(terms.foldLeft(IntMap[List[MatchingTerm]]()) {
           (terms2, term) =>
             val term2 = recursivelyMatchingTermFromTerm(term)
-            terms2 + (term2.lazyHashCode, term2 :: terms2.getOrElse(term2.lazyHashCode, Nil))
+            terms2 + (term2.lazyHashCode -> (term2 :: terms2.getOrElse(term2.lazyHashCode, Nil)))
         })
     }
   
@@ -37,13 +37,20 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
  
   private def matchesForAllTerms(term: MatchingTerm, terms: IntMap[List[MatchingTerm]], matching: Matching.Value) =
     terms.foldLeft(true) {
-      case (b, (_, terms2)) => terms2.foldLeft(b) { (b2, term2) => if(b2) matchesTerms(term, term2, matching) else false }
+      case (b, (_, terms2)) => if(b) terms2.foldLeft(b) { (b2, term2) => if(b2) matchesTerms(term, term2, matching) else false } else false
     }
       
   private def matchesSupertermWithTerm(term1: MatchingTerm, term2: MatchingTerm): Boolean =
     (term1, term2) match {
       case (Disjunction(terms1), Conjunction(terms2)) =>
-        throw new UnsupportedOperationException
+        term1.distributedTerm.map { (_, term2) }.orElse {
+          term2.distributedTerm.map { (term1, _) }
+        }.map {
+          case (distributedTerm1, distributedTerm2) => matchesSupertermWithTerm(distributedTerm1, distributedTerm2)
+        }.getOrElse {
+          matchesForOneTerm(term1, filterTermsFromSuperterm(terms2, term1), Matching.SupertermWithTerm) ||
+          matchesForOneTerm(term2, filterSupertermsFromTerm(terms1, term2), Matching.TermWithSuperterm)
+        }
       case (_, Disjunction(terms2)) =>
         matchesForAllTerms(term1, terms2, Matching.SupertermWithTerm)
       case (Conjunction(terms1), _) =>

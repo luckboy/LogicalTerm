@@ -26,7 +26,7 @@ class TermMatcher extends Matcher[Term]
         }.map {
           case (distributedTerm1, distributedTerm2) => matchesSupertermWithTerm(distributedTerm1, distributedTerm2)
         }.getOrElse {
-          matchesForOneTerm(normalizedTerm1, terms2, Matching.SupertermWithTerm) &&
+          matchesForOneTerm(normalizedTerm1, terms2, Matching.SupertermWithTerm) ||
           matchesForOneTerm(normalizedTerm2, terms1, Matching.TermWithSuperterm)
         }
       case (_, Disjunction(terms2)) =>

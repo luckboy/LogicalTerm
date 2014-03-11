@@ -21,8 +21,8 @@ object Parser extends StandardTokenParsers with PackratParsers
       expr ~ ("=" ~> expr)								^^ { case t1 ~ t2 => Match(t1, t2, Matching.Terms) }
       | expr ~ (">=" ~> expr)							^^ { case t1 ~ t2 => Match(t1, t2, Matching.SupertermWithTerm) }
       | expr ~ ("<=" ~> expr)							^^ { case t1 ~ t2 => Match(t1, t2, Matching.TermWithSuperterm) }
-      | "find" ~> expr									^^ Find
-      | "add" ~> expr									^^ Add)
+      | "find" ~> expr									^^ Find[Term]
+      | "add" ~> expr									^^ Add[Term])
     
   def parseTermString(s: String): Validation[AbstractError, Term] =
     phrase(expr)(new lexical.Scanner(s)) match {
@@ -31,15 +31,15 @@ object Parser extends StandardTokenParsers with PackratParsers
       case Error(msg, next)   => pl.luckboy.logicalterm.FatalError(msg, next.pos).failure
     }
   
-  def parseInstructionString(s: String): Validation[AbstractError, Instruction] =
+  def parseInstructionString(s: String): Validation[AbstractError, Instruction[Term]] =
     phrase(instr)(new lexical.Scanner(s)) match {
       case Success(instr, _)  => instr.success
       case Failure(msg, next) => pl.luckboy.logicalterm.Error(msg, next.pos).failure
       case Error(msg, next)   => pl.luckboy.logicalterm.FatalError(msg, next.pos).failure
     }
 
-  def parseString(s: String): Validation[AbstractError, List[Instruction]] =
-    s.split("\n").flatMap { t => if(t.matches("^\\s*$")) Nil else List(t) }.foldLeft(List[Instruction]().success[AbstractError]) {
+  def parseString(s: String): Validation[AbstractError, List[Instruction[Term]]] =
+    s.split("\n").flatMap { t => if(t.matches("^\\s*$")) Nil else List(t) }.foldLeft(List[Instruction[Term]]().success[AbstractError]) {
       (res, line) => res.flatMap { is => parseInstructionString(line).map { _ :: is } }
     }.map { _.reverse }
 }

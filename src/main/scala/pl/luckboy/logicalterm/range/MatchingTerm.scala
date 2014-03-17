@@ -1,5 +1,7 @@
 package pl.luckboy.logicalterm.range
 import scala.collection.immutable.SortedSet
+import scalaz._
+import scalaz.Scalaz._
 
 case class MatchingTerm(
     conjNode: TermNode,
@@ -17,32 +19,106 @@ case class TermLeaf(varName: String) extends TermNode
 
 case class TermNodeRangeSet(ranges: SortedSet[TermNodeRange])
 {
-  def & (rangeSet: TermNodeRangeSet): TermNodeRangeSet =
-    throw new UnsupportedOperationException
+  private def intersect(rangeSet: TermNodeRangeSet) = {
+    val newRanges = ranges.flatMap {
+      range =>
+        val from = TermNodeRange(range.minIdx, range.minIdx)
+        val to = TermNodeRange(range.maxIdx, range.maxIdx)
+        rangeSet.ranges.from(from).to(to).flatMap {
+          range2 =>
+            if(range.minIdx >= range2.minIdx && range.maxIdx <= range2.maxIdx) SortedSet(range)
+            else if(range.minIdx <= range2.minIdx && range.maxIdx >= range2.maxIdx) SortedSet(range2)
+            else SortedSet() // this case is impossible
+        }
+    }
+    TermNodeRangeSet(newRanges)
+  }
   
-  def | (rangeSet: TermNodeRangeSet): TermNodeRangeSet =
-    throw new UnsupportedOperationException
-    
-  def isEmpty: Boolean =
-    throw new UnsupportedOperationException
-    
-  def superset(rangeSet: TermNodeRangeSet): TermNodeRangeSet =
-    throw new UnsupportedOperationException
-    
-  def subset(rangeSet: TermNodeRangeSet): TermNodeRangeSet =
-    throw new UnsupportedOperationException
+  def & (rangeSet: TermNodeRangeSet) =
+    if(ranges.size < rangeSet.ranges.size) intersect(rangeSet) else rangeSet.intersect(this)
   
-  def supersetAndSubset(sepRageSet: TermNodeRangeSet): (TermNodeRangeSet, TermNodeRangeSet) =
-    throw new UnsupportedOperationException
+  private def union(rangeSet: TermNodeRangeSet) = {
+    val newRanges = ranges.flatMap {
+      range =>
+        val from = TermNodeRange(range.minIdx, range.minIdx)
+        rangeSet.ranges.from(from).headOption.map {
+          range2 =>
+            if(range.minIdx <= range2.minIdx && range.maxIdx >= range2.maxIdx) SortedSet(range)
+            else if(range.minIdx >= range2.minIdx && range.maxIdx <= range2.maxIdx) SortedSet(range2)
+            else SortedSet() // this case is impossible
+        }.getOrElse(SortedSet(range))
+    }
+    val newRanges3 = rangeSet.ranges.foldLeft(newRanges) {
+      (newRanges2, range) => if(newRanges2.contains(range)) newRanges2 else newRanges2 + range
+    }
+    TermNodeRangeSet(newRanges3)
+  }
+  
+  def | (rangeSet: TermNodeRangeSet) =
+    if(ranges.size < rangeSet.ranges.size) union(rangeSet) else rangeSet.union(this)
+    
+  def isEmpty = ranges.isEmpty
+    
+  def superset(sepRangeSet: TermNodeRangeSet) = {
+    val newRanges = ranges.flatMap {
+      range =>
+        val from = TermNodeRange(range.minIdx, range.minIdx)
+        sepRangeSet.ranges.from(from).headOption.map {
+          sepRange =>
+            if(range.minIdx <= sepRange.minIdx && range.maxIdx >= sepRange.maxIdx) SortedSet(range)
+            else if(range.minIdx >= sepRange.minIdx && range.maxIdx <= sepRange.maxIdx) SortedSet(sepRange)
+            else SortedSet() // this case is impossible
+        }.getOrElse(SortedSet(range))
+    }
+    TermNodeRangeSet(newRanges)
+  }
+    
+  def subset(sepRangeSet: TermNodeRangeSet) = {
+    val newRanges = ranges.flatMap {
+      range =>
+        val from = TermNodeRange(range.minIdx, range.minIdx)
+        val to = TermNodeRange(range.maxIdx, range.maxIdx)
+        sepRangeSet.ranges.from(from).to(to).flatMap {
+          sepRange =>
+            if(range.minIdx >= sepRange.minIdx && range.maxIdx <= sepRange.maxIdx) SortedSet(range)
+            else if(range.minIdx <= sepRange.minIdx && range.maxIdx >= sepRange.maxIdx) SortedSet(sepRange)
+            else SortedSet() // this case is impossible
+        }
+    }
+    TermNodeRangeSet(newRanges)
+  }
+  
+  def supersetAndSubset(sepRangeSet: TermNodeRangeSet) = {
+    val (newSupersetRanges, newSubsetRanges) = ranges.foldLeft((SortedSet[TermNodeRange](), SortedSet[TermNodeRange]())) {
+      case ((supersetRanges, subsetRanges), range) =>
+        val from = TermNodeRange(range.minIdx, range.minIdx)
+        val to = TermNodeRange(range.maxIdx, range.maxIdx)
+        val supersetRanges2 = sepRangeSet.ranges.from(from).headOption.map {
+          sepRange =>
+            if(range.minIdx <= sepRange.minIdx && range.maxIdx >= sepRange.maxIdx) SortedSet(range)
+            else if(range.minIdx >= sepRange.minIdx && range.maxIdx <= sepRange.maxIdx) SortedSet(sepRange)
+            else SortedSet() // this case is impossible
+        }.getOrElse(SortedSet(range))
+        val subsetRanges2 = sepRangeSet.ranges.from(from).to(to).flatMap {
+          sepRange =>
+            if(range.minIdx >= sepRange.minIdx && range.maxIdx <= sepRange.maxIdx) SortedSet(range)
+            else if(range.minIdx <= sepRange.minIdx && range.maxIdx >= sepRange.maxIdx) SortedSet(sepRange)
+            else SortedSet() // this case is impossible
+        }
+        (supersetRanges | supersetRanges2, subsetRanges | subsetRanges2)
+    }
+    (TermNodeRangeSet(newSupersetRanges), TermNodeRangeSet(newSubsetRanges))
+  }
 }
 
 object TermNodeRangeSet
 {
-  def empty: TermNodeRangeSet =
-    throw new UnsupportedOperationException
+  def empty = TermNodeRangeSet(SortedSet())
   
-  def full: TermNodeRangeSet = 
-    throw new UnsupportedOperationException
+  def full = {
+    val fullRange = TermNodeRange(0, Integer.MAX_VALUE)
+    TermNodeRangeSet(SortedSet(fullRange))
+  }
 }
 
 case class TermNodeRange(minIdx: Int, maxIdx: Int)

@@ -65,9 +65,21 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         node match {
           case TermBranch(childs) =>
             childs.foldLeft(none[((TermNodeRangeSet, TermNodeRangeSet), Set[String])].success[FatalError]) {
-              case (Success(None), child) =>
+              case (Success(Some((newRangeSetPair, varNames))), child) =>
+                val (newRangeSet, newRangeSubset) = newRangeSetPair
+                checkSuperdisjunctionNode(node, rangeSets, depthRangeSets2)(rangeSetPair).map {
+                  _.flatMap {
+                    case (childRangeSetPair, childVarNames) =>
+                      val (childRangeSet, childRangeSubset) = childRangeSetPair
+                      val newRangeSet2 = newRangeSet & childRangeSet
+                      val newRangeSubset2 = newRangeSubset & childRangeSubset
+                      val varNames2 = varNames | childVarNames
+                      some(((newRangeSet2, newRangeSubset2), varNames))
+                  }
+                }
+              case (Success(None), child)                              =>
                 checkSuperdisjunctionNode(node, rangeSets, depthRangeSets2)(rangeSetPair)
-              case (res, _)               =>
+              case (res, _)                                            =>
                 res
             }
           case TermLeaf(varName) =>

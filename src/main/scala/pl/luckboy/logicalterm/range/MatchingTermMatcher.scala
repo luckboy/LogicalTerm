@@ -13,8 +13,6 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
   override def matchingTermFromTerm(term: Term): Option[MatchingTerm] =
     throw new UnsupportedOperationException
   
-  private def fullRangeSetPair = (TermNodeRangeSet.full, TermNodeRangeSet.full)
-    
   private def checkSuperconjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet])(rangeSet: TermNodeRangeSet): Validation[FatalError, Option[(TermNodeRangeSet, Set[String])]] = {
     depthRangeSets match {
       case depthRangeSet :: nextDepthRangeSet :: _ =>

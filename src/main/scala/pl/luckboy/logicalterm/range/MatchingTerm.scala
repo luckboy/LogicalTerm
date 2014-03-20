@@ -71,44 +71,7 @@ case class TermNodeRangeSet(ranges: SortedSet[TermNodeRange])
         }.getOrElse(SortedSet(range))
     }
     TermNodeRangeSet(newRanges)
-  }
-    
-  def subset(sepRangeSet: TermNodeRangeSet) = {
-    val newRanges = ranges.flatMap {
-      range =>
-        val from = TermNodeRange(range.minIdx, range.minIdx)
-        val to = TermNodeRange(range.maxIdx, range.maxIdx)
-        sepRangeSet.ranges.from(from).to(to).flatMap {
-          sepRange =>
-            if(range.minIdx >= sepRange.minIdx && range.maxIdx <= sepRange.maxIdx) SortedSet(range)
-            else if(range.minIdx <= sepRange.minIdx && range.maxIdx >= sepRange.maxIdx) SortedSet(sepRange)
-            else SortedSet() // this case is impossible
-        }
-    }
-    TermNodeRangeSet(newRanges)
-  }
-  
-  def supersetAndSubset(sepRangeSet: TermNodeRangeSet) = {
-    val (newSupersetRanges, newSubsetRanges) = ranges.foldLeft((SortedSet[TermNodeRange](), SortedSet[TermNodeRange]())) {
-      case ((supersetRanges, subsetRanges), range) =>
-        val from = TermNodeRange(range.minIdx, range.minIdx)
-        val to = TermNodeRange(range.maxIdx, range.maxIdx)
-        val supersetRanges2 = sepRangeSet.ranges.from(from).headOption.map {
-          sepRange =>
-            if(range.minIdx <= sepRange.minIdx && range.maxIdx >= sepRange.maxIdx) SortedSet(range)
-            else if(range.minIdx >= sepRange.minIdx && range.maxIdx <= sepRange.maxIdx) SortedSet(sepRange)
-            else SortedSet() // this case is impossible
-        }.getOrElse(SortedSet(range))
-        val subsetRanges2 = sepRangeSet.ranges.from(from).to(to).flatMap {
-          sepRange =>
-            if(range.minIdx >= sepRange.minIdx && range.maxIdx <= sepRange.maxIdx) SortedSet(range)
-            else if(range.minIdx <= sepRange.minIdx && range.maxIdx >= sepRange.maxIdx) SortedSet(sepRange)
-            else SortedSet() // this case is impossible
-        }
-        (supersetRanges | supersetRanges2, subsetRanges | subsetRanges2)
-    }
-    (TermNodeRangeSet(newSupersetRanges), TermNodeRangeSet(newSubsetRanges))
-  }
+  }    
 }
 
 object TermNodeRangeSet

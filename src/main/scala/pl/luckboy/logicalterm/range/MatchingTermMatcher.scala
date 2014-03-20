@@ -18,7 +18,6 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
   private def checkSuperconjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet])(rangeSet: TermNodeRangeSet): Validation[FatalError, Option[(TermNodeRangeSet, Set[String])]] = {
     depthRangeSets match {
       case depthRangeSet :: nextDepthRangeSet :: _ =>
-        val rangeSet2 = rangeSet.subset(nextDepthRangeSet)
         (node match {
           case TermBranch(childs) =>
             childs.foldLeft(some((rangeSet, Set[String]())).success[FatalError]) {
@@ -31,16 +30,16 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
                       if(!newRangeSet2.isEmpty) some((newRangeSet2, varNames2)) else none
                   }
                 }
-              case (res, _)                                            =>
+              case (res, _)                                        =>
                 res
             }
           case TermLeaf(_) =>
-            checkSuperdisjunctionNode(node, rangeSets, depthRangeSets)(rangeSet2)
+            checkSuperdisjunctionNode(node, rangeSets, depthRangeSets)(rangeSet)
         }).map {
           _.map {
-            case (rangeSet3, varNames3) =>
-              val rangeSet4 = rangeSet3.superset(depthRangeSet)
-              (rangeSet4, varNames3)
+            case (rangeSet2, varNames2) =>
+              val rangeSet3 = rangeSet2.superset(depthRangeSet)
+              (rangeSet3, varNames2)
           }
         }
       case _ :: Nil =>
@@ -62,7 +61,7 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
                     case (childRangeSet, childVarNames) =>
                       val newRangeSet2 = newRangeSet & childRangeSet
                       val varNames2 = varNames | childVarNames
-                      some((newRangeSet2, varNames))
+                      some((newRangeSet2, varNames2))
                   }
                 }
               case (Success(None), child)                              =>
@@ -73,8 +72,7 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
           case TermLeaf(varName) =>
             rangeSets.get(varName).map {
               rs =>
-                val (rs1, rs2) = rs.supersetAndSubset(nextDepthRangeSet)
-                some((rangeSet & rs1, Set(varName))).success
+                some((rangeSet & rs.superset(nextDepthRangeSet), Set(varName))).success
             }.getOrElse(FatalError("not found narrowest range set", NoPosition).failure)
         }
       case _ :: Nil =>

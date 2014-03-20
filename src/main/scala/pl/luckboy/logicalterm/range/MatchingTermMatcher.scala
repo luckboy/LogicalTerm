@@ -15,41 +15,32 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
   
   private def fullRangeSetPair = (TermNodeRangeSet.full, TermNodeRangeSet.full)
     
-  private def checkSuperconjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet])(rangeSetPair: (TermNodeRangeSet, TermNodeRangeSet)): Validation[FatalError, Option[((TermNodeRangeSet, TermNodeRangeSet), Set[String])]] = {
+  private def checkSuperconjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet])(rangeSet: TermNodeRangeSet): Validation[FatalError, Option[(TermNodeRangeSet, Set[String])]] = {
     depthRangeSets match {
       case depthRangeSet :: nextDepthRangeSet :: _ =>
-        val (rangeSet, rangeSubset) = rangeSetPair
-        val rangeSet2 = rangeSet & rangeSubset.superset(nextDepthRangeSet)
-        val rangeSubset2 = rangeSubset & nextDepthRangeSet.subset(nextDepthRangeSet)
+        val rangeSet2 = rangeSet.subset(nextDepthRangeSet)
         (node match {
           case TermBranch(childs) =>
-            childs.foldLeft(some(((rangeSet2, rangeSubset2), Set[String]())).success[FatalError]) {
-              case (Success(Some((newRangeSetPair, varNames))), child) =>
-                val (newRangeSet, newRangeSubset) = newRangeSetPair
-                checkSuperdisjunctionNode(child, rangeSets, depthRangeSets)(newRangeSetPair).map {
+            childs.foldLeft(some((rangeSet, Set[String]())).success[FatalError]) {
+              case (Success(Some((newRangeSet, varNames))), child) =>
+                checkSuperdisjunctionNode(child, rangeSets, depthRangeSets)(newRangeSet).map {
                   _.flatMap {
-                    case (childRangeSetPair, childVarNames) =>
-                      val (childRangeSet, childRangeSubset) = childRangeSetPair
+                    case (childRangeSet, childVarNames) =>
                       val newRangeSet2 = newRangeSet & childRangeSet
-                      val newRangeSubset2 = newRangeSubset & childRangeSubset
                       val varNames2 = varNames | childVarNames
-                      if(!newRangeSet2.isEmpty && !newRangeSubset2.isEmpty)
-                        some(((newRangeSet2, newRangeSubset2), varNames2))
-                      else
-                        none
+                      if(!newRangeSet2.isEmpty) some((newRangeSet2, varNames2)) else none
                   }
                 }
               case (res, _)                                            =>
                 res
             }
           case TermLeaf(_) =>
-            checkSuperdisjunctionNode(node, rangeSets, depthRangeSets)(rangeSetPair)
+            checkSuperdisjunctionNode(node, rangeSets, depthRangeSets)(rangeSet2)
         }).map {
           _.map {
-            case ((rangeSet3, rangeSubset3), varNames3) =>
-              val rangeSet4 = rangeSet3 | rangeSubset.superset(depthRangeSet)
-              val rangeSubset4 = rangeSubset3 | rangeSet.subset(depthRangeSet)
-              ((rangeSet4, rangeSubset4), varNames3)
+            case (rangeSet3, varNames3) =>
+              val rangeSet4 = rangeSet3.superset(depthRangeSet)
+              (rangeSet4, varNames3)
           }
         }
       case _ :: Nil =>
@@ -59,26 +50,23 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
     }
   }
   
-  private def checkSuperdisjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet])(rangeSetPair: (TermNodeRangeSet, TermNodeRangeSet)): Validation[FatalError, Option[((TermNodeRangeSet, TermNodeRangeSet), Set[String])]] =
+  private def checkSuperdisjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet])(rangeSet: TermNodeRangeSet): Validation[FatalError, Option[(TermNodeRangeSet, Set[String])]] =
     depthRangeSets match {
       case _ :: (depthRangeSets2 @ (nextDepthRangeSet :: _)) =>
         node match {
           case TermBranch(childs) =>
-            childs.foldLeft(none[((TermNodeRangeSet, TermNodeRangeSet), Set[String])].success[FatalError]) {
-              case (Success(Some((newRangeSetPair, varNames))), child) =>
-                val (newRangeSet, newRangeSubset) = newRangeSetPair
-                checkSuperdisjunctionNode(node, rangeSets, depthRangeSets2)(rangeSetPair).map {
+            childs.foldLeft(none[(TermNodeRangeSet, Set[String])].success[FatalError]) {
+              case (Success(Some((newRangeSet, varNames))), child) =>
+                checkSuperdisjunctionNode(node, rangeSets, depthRangeSets2)(rangeSet).map {
                   _.flatMap {
-                    case (childRangeSetPair, childVarNames) =>
-                      val (childRangeSet, childRangeSubset) = childRangeSetPair
+                    case (childRangeSet, childVarNames) =>
                       val newRangeSet2 = newRangeSet & childRangeSet
-                      val newRangeSubset2 = newRangeSubset & childRangeSubset
                       val varNames2 = varNames | childVarNames
-                      some(((newRangeSet2, newRangeSubset2), varNames))
+                      some((newRangeSet2, varNames))
                   }
                 }
               case (Success(None), child)                              =>
-                checkSuperdisjunctionNode(node, rangeSets, depthRangeSets2)(rangeSetPair)
+                checkSuperdisjunctionNode(node, rangeSets, depthRangeSets2)(rangeSet)
               case (res, _)                                            =>
                 res
             }
@@ -86,7 +74,7 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
             rangeSets.get(varName).map {
               rs =>
                 val (rs1, rs2) = rs.supersetAndSubset(nextDepthRangeSet)
-                some(((rangeSetPair._1 & rs1, rangeSetPair._2 & rs2), Set(varName))).success
+                some((rangeSet & rs1, Set(varName))).success
             }.getOrElse(FatalError("not found narrowest range set", NoPosition).failure)
         }
       case _ :: Nil =>
@@ -101,14 +89,14 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         for {
           // superterm with term
           // superconjunctions with conjunctions
-          optPair1 <- checkSuperconjunctionNode(term1.conjNode, term2.conjRangeSets, term2.conjDepthRangeSets)(fullRangeSetPair)
+          optPair1 <- checkSuperconjunctionNode(term1.conjNode, term2.conjRangeSets, term2.conjDepthRangeSets)(TermNodeRangeSet.full)
           // superdisjunctions with disjunctions
-          optPair2 <- checkSuperdisjunctionNode(term2.conjNode, term1.disjRangeSets, term1.disjDepthRangeSets)(fullRangeSetPair)
+          optPair2 <- checkSuperdisjunctionNode(term2.conjNode, term1.disjRangeSets, term1.disjDepthRangeSets)(TermNodeRangeSet.full)
           // term with superterm
           // conjunctions with superconjunctions
-          optPair3 <- checkSuperconjunctionNode(term2.conjNode, term1.conjRangeSets, term1.conjDepthRangeSets)(fullRangeSetPair)
+          optPair3 <- checkSuperconjunctionNode(term2.conjNode, term1.conjRangeSets, term1.conjDepthRangeSets)(TermNodeRangeSet.full)
           // disjunctions with superdisjunctions
-          optPair4 <- checkSuperdisjunctionNode(term1.conjNode, term2.disjRangeSets, term2.disjDepthRangeSets)(fullRangeSetPair)
+          optPair4 <- checkSuperdisjunctionNode(term1.conjNode, term2.disjRangeSets, term2.disjDepthRangeSets)(TermNodeRangeSet.full)
         } yield  {
           for {
             (_, vns1)  <- optPair1; (_, vns2) <- optPair2
@@ -118,16 +106,16 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
       case Matching.SupertermWithTerm =>
         for {
           // superconjunctions with conjunctions
-          optPair1 <- checkSuperconjunctionNode(term1.conjNode, term2.conjRangeSets, term2.conjDepthRangeSets)(fullRangeSetPair)
+          optPair1 <- checkSuperconjunctionNode(term1.conjNode, term2.conjRangeSets, term2.conjDepthRangeSets)(TermNodeRangeSet.full)
           // superdisjunctions with disjunctions
-          optPair2 <- checkSuperdisjunctionNode(term2.conjNode, term1.disjRangeSets, term1.disjDepthRangeSets)(fullRangeSetPair)
+          optPair2 <- checkSuperdisjunctionNode(term2.conjNode, term1.disjRangeSets, term1.disjDepthRangeSets)(TermNodeRangeSet.full)
         } yield (for((_, vns1)  <- optPair1; (_, vns2) <- optPair2) yield (vns1 | vns2))
       case Matching.TermWithSuperterm =>
         for {
           // conjunctions with superconjunctions
-          optPair1 <- checkSuperconjunctionNode(term2.conjNode, term1.conjRangeSets, term1.conjDepthRangeSets)(fullRangeSetPair)
+          optPair1 <- checkSuperconjunctionNode(term2.conjNode, term1.conjRangeSets, term1.conjDepthRangeSets)(TermNodeRangeSet.full)
           // disjunctions with superdisjunctions
-          optPair2 <- checkSuperdisjunctionNode(term1.conjNode, term2.disjRangeSets, term2.disjDepthRangeSets)(fullRangeSetPair)
+          optPair2 <- checkSuperdisjunctionNode(term1.conjNode, term2.disjRangeSets, term2.disjDepthRangeSets)(TermNodeRangeSet.full)
         } yield (for((_, vns1)  <- optPair1; (_, vns2) <- optPair2) yield (vns1 | vns2))
     }
     

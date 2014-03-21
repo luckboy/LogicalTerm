@@ -1,7 +1,9 @@
 package pl.luckboy.logicalterm.range
 import scala.collection.immutable.SortedSet
+import scala.collection.immutable.SortedMap
 import scalaz._
 import scalaz.Scalaz._
+import pl.luckboy.logicalterm.ConcatSeq
 
 case class MatchingTerm(
     conjNode: TermNode,
@@ -15,43 +17,51 @@ sealed trait TermNode
 
 case class TermBranch(childs: Vector[TermNode]) extends TermNode
 
-case class TermLeaf(varName: String) extends TermNode
+case class TermLeaf(varName: String, varIdx: Int) extends TermNode
 
-case class TermNodeRangeSet(ranges: SortedSet[TermNodeRange])
-{
+case class TermNodeRangeSet(ranges: SortedMap[TermNodeRange, VarIndexSeqPair])
+{ 
   private def intersect(rangeSet: TermNodeRangeSet) = {
-    val newRanges = ranges.flatMap {
-      range =>
+    val newRanges3 = ranges.foldLeft(SortedMap[TermNodeRange, VarIndexSeqPair]()) {
+      case (newRanges, (range, pair)) =>
         val from = TermNodeRange(range.minIdx, range.minIdx)
         val to = TermNodeRange(range.maxIdx, range.maxIdx)
-        rangeSet.ranges.from(from).to(to).flatMap {
-          range2 =>
-            if(range.minIdx >= range2.minIdx && range.maxIdx <= range2.maxIdx) SortedSet(range)
-            else if(range.minIdx <= range2.minIdx && range.maxIdx >= range2.maxIdx) SortedSet(range2)
-            else SortedSet() // this case is impossible
+        rangeSet.ranges.from(from).to(to).foldLeft(newRanges) {
+          case (newRanges2, (range2, pair2)) =>
+            if(range.minIdx >= range2.minIdx && range.maxIdx <= range2.maxIdx)
+              newRanges2 + (range -> (pair2 ++ pair))
+            else if(range.minIdx <= range2.minIdx && range.maxIdx >= range2.maxIdx)
+              newRanges2 + (range2 -> (pair2 ++ pair))
+            else
+              newRanges2 // this case is impossible
         }
     }
-    TermNodeRangeSet(newRanges)
+    TermNodeRangeSet(newRanges3)
   }
   
   def & (rangeSet: TermNodeRangeSet) =
     if(ranges.size < rangeSet.ranges.size) intersect(rangeSet) else rangeSet.intersect(this)
   
   private def union(rangeSet: TermNodeRangeSet) = {
-    val newRanges = ranges.flatMap {
-      range =>
+    val newRanges2 = ranges.foldLeft(SortedMap[TermNodeRange, VarIndexSeqPair]()) {
+      case (newRanges, (range, pair)) =>
         val from = TermNodeRange(range.minIdx, range.minIdx)
-        rangeSet.ranges.from(from).headOption.map {
-          range2 =>
-            if(range.minIdx <= range2.minIdx && range.maxIdx >= range2.maxIdx) SortedSet(range)
-            else if(range.minIdx >= range2.minIdx && range.maxIdx <= range2.maxIdx) SortedSet(range2)
-            else SortedSet() // this case is impossible
-        }.getOrElse(SortedSet(range))
+        val to = TermNodeRange(range.maxIdx, range.maxIdx)
+        val ranges2 = rangeSet.ranges.from(from).to(to)
+        ranges2.headOption.map {
+          case (range2, pair2) =>
+            if(range.minIdx <= range2.minIdx && range.maxIdx >= range2.maxIdx)
+              newRanges + (range -> ranges2.values.foldLeft(pair) { (p, p2) => p2 ++ p })
+            else if(range.minIdx >= range2.minIdx && range.maxIdx <= range2.maxIdx)
+              newRanges + (range2 -> (pair ++ pair2))
+            else
+              newRanges // this case is impossible
+        }.getOrElse(newRanges)
     }
-    val newRanges3 = rangeSet.ranges.foldLeft(newRanges) {
-      (newRanges2, range) => if(newRanges2.contains(range)) newRanges2 else newRanges2 + range
+    val newRanges4 = rangeSet.ranges.foldLeft(newRanges2) {
+      case (newRanges3, pair @ (range, value)) => if(newRanges2.contains(range)) newRanges3 else newRanges3 + pair
     }
-    TermNodeRangeSet(newRanges3)
+    TermNodeRangeSet(newRanges4)
   }
   
   def | (rangeSet: TermNodeRangeSet) =
@@ -60,28 +70,51 @@ case class TermNodeRangeSet(ranges: SortedSet[TermNodeRange])
   def isEmpty = ranges.isEmpty
     
   def superset(sepRangeSet: TermNodeRangeSet) = {
-    val newRanges = ranges.flatMap {
-      range =>
+    val newRanges2 = ranges.foldLeft(SortedMap[TermNodeRange, VarIndexSeqPair]()) {
+      case (newRanges, (range, pair)) =>
         val from = TermNodeRange(range.minIdx, range.minIdx)
-        sepRangeSet.ranges.from(from).headOption.map {
-          sepRange =>
-            if(range.minIdx <= sepRange.minIdx && range.maxIdx >= sepRange.maxIdx) SortedSet(range)
-            else if(range.minIdx >= sepRange.minIdx && range.maxIdx <= sepRange.maxIdx) SortedSet(sepRange)
-            else SortedSet() // this case is impossible
-        }.getOrElse(SortedSet(range))
+        val to = TermNodeRange(range.maxIdx, range.maxIdx)
+        val sepRanges = sepRangeSet.ranges.from(from).to(to)
+        sepRanges.headOption.map {
+          case (sepRange, sepPair) =>
+            if(range.minIdx <= sepRange.minIdx && range.maxIdx >= sepRange.maxIdx)
+              newRanges + (range -> sepRanges.values.foldLeft(pair) { (p, p2) => p ++ p2 })
+            else if(range.minIdx >= sepRange.minIdx && range.maxIdx <= sepRange.maxIdx) 
+              newRanges + (sepRange -> (pair ++ sepPair))
+            else
+              newRanges // this case is impossible
+        }.getOrElse(newRanges)
     }
-    TermNodeRangeSet(newRanges)
-  }    
+    TermNodeRangeSet(newRanges2)
+  }
+  
+  def forMyVarIndex(idx: Int) =
+    TermNodeRangeSet(ranges.mapValues { case VarIndexSeqPair(oldMyVarIdxs, _) => VarIndexSeqPair(ConcatSeq(idx), oldMyVarIdxs) })
+    
+  def varIndexSeqPair = 
+    ranges.values.foldLeft(VarIndexSeqPair.empty) { (v, v2) => v2 ++ v }
 }
 
 object TermNodeRangeSet
 {
-  def empty = TermNodeRangeSet(SortedSet())
+  val empty = TermNodeRangeSet(SortedMap())
   
-  def full = {
-    val fullRange = TermNodeRange(0, Integer.MAX_VALUE)
-    TermNodeRangeSet(SortedSet(fullRange))
-  }
+  val full = TermNodeRangeSet(SortedMap(TermNodeRange.full -> VarIndexSeqPair.empty))
 }
 
 case class TermNodeRange(minIdx: Int, maxIdx: Int)
+
+object TermNodeRange
+{
+  val full = TermNodeRange(0, Integer.MAX_VALUE)
+}
+
+case class VarIndexSeqPair(myVarIdxs: ConcatSeq[Int], otherVarIdxs: ConcatSeq[Int])
+{
+  def ++ (pair: VarIndexSeqPair) = VarIndexSeqPair(myVarIdxs ++ pair.myVarIdxs, otherVarIdxs ++ pair.otherVarIdxs)
+}
+
+object VarIndexSeqPair
+{
+  val empty = VarIndexSeqPair(ConcatSeq.empty, ConcatSeq.empty)
+}

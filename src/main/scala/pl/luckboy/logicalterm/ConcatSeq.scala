@@ -1,10 +1,12 @@
 package pl.luckboy.logicalterm
+import scalaz._
+import scalaz.Scalaz._
 
 sealed trait ConcatSeq[T]
 {
   def ++ (seq: ConcatSeq[T]) =
     seq match {
-      case SingleConcatSeq(_)  => ListConcatSeq(this :: seq :: Nil)
+      case SingleConcatSeq(_)  => ListConcatSeq(List(this, seq))
       case ListConcatSeq(seqs) => ListConcatSeq(this :: seqs)
     }
   
@@ -24,6 +26,11 @@ sealed trait ConcatSeq[T]
 object ConcatSeq
 {
   def empty[T] = ListConcatSeq(List[ConcatSeq[T]]())
+  
+  def apply[T](xs: T*) =
+    xs.headOption.map { 
+      x => if(xs.size === 1) SingleConcatSeq(x) else ListConcatSeq(xs.map { SingleConcatSeq(_) }.toList)
+    }.getOrElse(ListConcatSeq(Nil))
 }
 
 case class SingleConcatSeq[T](x: T) extends ConcatSeq[T]

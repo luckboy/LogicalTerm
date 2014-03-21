@@ -48,7 +48,7 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
           case TermLeaf(varName, varIdx) =>
             rangeSets.get(varName).map {
               rs =>
-                (rangeSet & rs.forMyVarIndex(varIdx).superset(nextDepthRangeSet)).success
+                (rangeSet & rs.swapPairsWithMyVarIndex(varIdx).superset(nextDepthRangeSet)).success
             }.getOrElse(FatalError("not found narrowest range set", NoPosition).failure)
         }
       case _ :: Nil =>

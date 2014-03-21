@@ -88,7 +88,7 @@ case class TermNodeRangeSet(ranges: SortedMap[TermNodeRange, VarIndexSeqPair])
     TermNodeRangeSet(newRanges2)
   }
   
-  def forMyVarIndex(idx: Int) =
+  def swapPairsWithMyVarIndex(idx: Int) =
     TermNodeRangeSet(ranges.mapValues { case VarIndexSeqPair(oldMyVarIdxs, _) => VarIndexSeqPair(ConcatSeq(idx), oldMyVarIdxs) })
     
   def varIndexSeqPair = 

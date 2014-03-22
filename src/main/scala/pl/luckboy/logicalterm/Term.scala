@@ -32,7 +32,7 @@ sealed trait Term
 
   private def flattenDisjunction: Term =
     this match {
-      case Conjunction(terms) =>
+      case Disjunction(terms) =>
         terms.headOption.map { 
           _ => terms.foldLeft(Disjunction(Set())) { _.flattenDisjunction | _.flattenDisjunction }
         }.getOrElse(Disjunction(Set()))

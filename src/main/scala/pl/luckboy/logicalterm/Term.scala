@@ -20,13 +20,33 @@ sealed trait Term
       case (_, _)                                    => Disjunction(Set(this, term))
     }
   
+  private def flattenConjunction: Term =
+    this match {
+      case Conjunction(terms) =>
+        terms.headOption.map { 
+          _ => terms.foldLeft(Conjunction(Set())) { _.flattenConjunction & _.flattenConjunction }
+        }.getOrElse(Conjunction(Set()))
+      case _                  =>
+        this
+    }
+
+  private def flattenDisjunction: Term =
+    this match {
+      case Conjunction(terms) =>
+        terms.headOption.map { 
+          _ => terms.foldLeft(Disjunction(Set())) { _.flattenDisjunction | _.flattenDisjunction }
+        }.getOrElse(Disjunction(Set()))
+      case _                  =>
+        this
+    }
+  
   def normalizedTerm =
     this match {
       case Conjunction(terms) =>
-        val conj = terms.headOption.map { t => terms.foldLeft(Conjunction(Set(t))) { _ & _ } }.getOrElse(Conjunction(Set()))
+        val conj = flattenConjunction
         terms.headOption.map { if(terms.size === 1) _ else conj }.getOrElse(conj)
       case Disjunction(terms) =>
-        val disj = terms.headOption.map { t => terms.foldLeft(Disjunction(Set(t))) { _ | _ } }.getOrElse(Disjunction(Set()))
+        val disj = flattenDisjunction
         terms.headOption.map { if(terms.size === 1) _ else disj }.getOrElse(disj)
       case _                  =>
         this

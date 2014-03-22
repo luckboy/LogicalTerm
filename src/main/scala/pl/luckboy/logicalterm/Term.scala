@@ -101,5 +101,9 @@ sealed trait Term
 }
 
 case class VarApp(name: String, args: Seq[Term]) extends Term
-case class Conjunction(terms: Set[Term]) extends Term
-case class Disjunction(terms: Set[Term]) extends Term
+sealed trait LogicalTerm extends Term
+{
+  def terms: Set[Term]
+}
+case class Conjunction(terms: Set[Term]) extends LogicalTerm
+case class Disjunction(terms: Set[Term]) extends LogicalTerm

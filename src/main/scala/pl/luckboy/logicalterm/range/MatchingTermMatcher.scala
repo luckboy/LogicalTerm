@@ -1,4 +1,6 @@
 package pl.luckboy.logicalterm.range
+import scala.collection.immutable.IntMap
+import scala.collection.immutable.SortedMap
 import scala.util.parsing.input.NoPosition
 import scalaz._
 import scalaz.Scalaz._
@@ -6,8 +8,22 @@ import pl.luckboy.logicalterm._
 
 class MatchingTermMatcher extends Matcher[MatchingTerm]
 {
-  private def matchingTermNodeFromTermForDepth(term: Term, depth: Int): Option[MatchingTerm] = {
-    throw new UnsupportedOperationException
+  private def matchingTermNodeFromTerm(term: Term)(pair: (Int, Map[String, Vector[Term]])): Option[((Int, Map[String, Vector[Term]]), TermNode)] = {
+    val (varIdx, varArgs) = pair
+    term.normalizedTerm match {
+      case VarApp(name, args) =>
+        if(varArgs.get(name).map { _ === args.toVector }.getOrElse(true))
+          some(((varIdx + 1, varArgs + (name -> args.toVector)), TermLeaf(name, varIdx)))
+        else
+          none
+      case logicalTerm: LogicalTerm =>
+        logicalTerm.terms.foldLeft(some((pair, Vector[TermNode]()))) {
+          case (Some((newPair, termNodes)), term) =>
+            matchingTermNodeFromTerm(term)(newPair).map { _.mapElements(identity, termNodes :+ _) }
+          case (None, _)                          =>
+            none
+        }.map { _.mapElements(identity, TermBranch(_)) }
+    }
   }
   
   override def matchingTermFromTerm(term: Term): Option[MatchingTerm] =

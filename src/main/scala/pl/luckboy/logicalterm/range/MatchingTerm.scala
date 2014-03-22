@@ -1,5 +1,4 @@
 package pl.luckboy.logicalterm.range
-import scala.collection.immutable.SortedSet
 import scala.collection.immutable.SortedMap
 import scalaz._
 import scalaz.Scalaz._

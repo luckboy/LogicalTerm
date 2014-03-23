@@ -102,6 +102,9 @@ object TermNodeRangeSet
 }
 
 case class TermNodeRange(minIdx: Int, maxIdx: Int)
+{
+  def | (range: TermNodeRange) = TermNodeRange(minIdx.min(range.minIdx), maxIdx.max(range.maxIdx))
+}
 
 object TermNodeRange
 {

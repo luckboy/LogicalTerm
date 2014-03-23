@@ -16,7 +16,9 @@ sealed trait ConcatSeq[T]
       case ListConcatSeq(seqs)  => seqs.foldLeft(z) { (x, seq) => seq.foldLeft(x)(f) }
     }
   
-  def toSeq = foldLeft(List[T]()) { (xs, x) => x :: xs }.reverse
+  def toSeq: Seq[T] = toList
+
+  def toList = foldLeft(List[T]()) { (xs, x) => x :: xs }.reverse
   
   def toVector = foldLeft(Vector[T]()) { _ :+ _ }
   
@@ -31,6 +33,11 @@ object ConcatSeq
     xs.headOption.map { 
       x => if(xs.size === 1) SingleConcatSeq(x) else ListConcatSeq(xs.map { SingleConcatSeq(_) }.toList)
     }.getOrElse(ListConcatSeq(Nil))
+    
+  def fromIterable[T](xs: Iterable[T]) =
+    xs.headOption.map { 
+      x => if(xs.size === 1) SingleConcatSeq(x) else ListConcatSeq(xs.map { SingleConcatSeq(_) }.toList)
+    }.getOrElse(ListConcatSeq(Nil))  
 }
 
 case class SingleConcatSeq[T](x: T) extends ConcatSeq[T]

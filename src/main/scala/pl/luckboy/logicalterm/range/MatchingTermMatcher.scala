@@ -73,8 +73,25 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         (tuple, Map(varName -> Set(varIdx)), Map(varName -> Set(varIdx)), TermNodeRange(varIdx, varIdx))
     }
   
-  override def matchingTermFromTerm(term: Term): Option[MatchingTerm] =
-    throw new UnsupportedOperationException
+  override def matchingTermFromTerm(term: Term) =
+    (term match {
+      case Disjunction(_) => termNodeFromTerm(term)((Map(), 0)).map { t => (t._1, TermBranch(Vector(t._2))) }
+      case _              => termNodeFromTerm(term)((Map(), 0))
+    }).flatMap {
+      case ((varArgMap, _), node) =>
+        val (conjRangeSet, disjRangeSet, conjDepthRangeSets, disjDepthRangeSets) = rangeSetsFromConjunctionNode(node)((Map(), Map(), Nil, Nil))._1
+        varArgMap.foldLeft(some(Map[String, Vector[MatchingTerm]]())) {
+          case (optVarArgMap2, (varName, varArgs)) => 
+            optVarArgMap2.flatMap {
+              varArgMap2 =>
+                varArgs.foldLeft(some(Vector[MatchingTerm]())) {
+                  (ovas, va) => ovas.flatMap { vas => matchingTermFromTerm(va).map { vas :+ _ } }
+                }.map { vas => varArgMap2 + (varName -> vas) }
+            }
+        }.map {
+          MatchingTerm(node, conjRangeSet, disjRangeSet, conjDepthRangeSets, disjDepthRangeSets, _)
+        }
+    }
   
   private def checkSuperconjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet])(rangeSet: TermNodeRangeSet): Validation[FatalError, TermNodeRangeSet] = {
     depthRangeSets match {
@@ -148,8 +165,8 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
   
   private def matchesSupertermWithTerm(term1: MatchingTerm, term2: MatchingTerm) =
     for {
-      conjRangeSet <- checkSuperconjunctionNode(term1.conjNode, term2.conjRangeSets, term2.conjDepthRangeSets)(TermNodeRangeSet.full)
-      disjRangeSet <- checkSuperdisjunctionNode(term2.conjNode, term1.disjRangeSets, term1.disjDepthRangeSets)(TermNodeRangeSet.full)
+      conjRangeSet <- checkSuperconjunctionNode(term1.conjNode, term2.conjRangeSets, TermNodeRangeSet.full :: term2.conjDepthRangeSets)(TermNodeRangeSet.full)
+      disjRangeSet <- checkSuperdisjunctionNode(term2.conjNode, term1.disjRangeSets, TermNodeRangeSet.full :: term1.disjDepthRangeSets)(TermNodeRangeSet.full)
     } yield {
       if(!conjRangeSet.isEmpty && !disjRangeSet.isEmpty) {
         val conjMyVarIdxs = conjRangeSet.varIndexSeqPair.myVarIdxs.toSet

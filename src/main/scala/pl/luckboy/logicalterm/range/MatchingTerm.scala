@@ -11,8 +11,28 @@ case class MatchingTerm(
     conjDepthRangeSets: List[TermNodeRangeSet],
     disjDepthRangeSets: List[TermNodeRangeSet],
     varArgs: Map[String, Vector[MatchingTerm]])
+{
+  override def toString = conjNode.toConjunctionStringForVarArgs(varArgs)
+}
 
 sealed trait TermNode
+{
+  def toConjunctionStringForVarArgs(varArgs: Map[String, Vector[MatchingTerm]]): String =
+    this match {
+      case TermBranch(childs) =>
+        childs.map { _.toDisjunctionStringForVarArgs(varArgs) }.mkString("&")
+      case TermLeaf(varName, _) =>
+        varName + varArgs.get(varName).map { _.map { " " + _.toString }.mkString("") }.getOrElse("/* not found arguments */")
+    }
+
+  def toDisjunctionStringForVarArgs(varArgs: Map[String, Vector[MatchingTerm]]): String =
+    this match {
+      case TermBranch(childs) =>
+        "(" + childs.map { _.toConjunctionStringForVarArgs(varArgs) }.mkString("|") + ")"
+      case TermLeaf(varName, _) =>
+        varName + varArgs.get(varName).map { _.map { " " + _.toString }.mkString("") }.getOrElse("/* not found arguments */")
+    }
+}
 
 case class TermBranch(childs: Vector[TermNode]) extends TermNode
 

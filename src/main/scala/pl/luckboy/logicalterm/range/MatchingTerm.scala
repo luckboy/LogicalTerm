@@ -12,6 +12,14 @@ case class MatchingTerm(
     disjDepthRangeSets: List[TermNodeRangeSet],
     varArgs: Map[String, Vector[MatchingTerm]])
 {
+  def toArgString =
+    conjNode match {
+      case TermLeaf(varName, _) =>
+        if(varArgs.get(varName).map { _.isEmpty }.getOrElse(false)) toString else "(" + this + ")"
+      case _                    =>
+        "(" + this + ")"
+    }
+  
   override def toString = conjNode.toConjunctionStringForVarArgs(varArgs)
 }
 
@@ -22,7 +30,7 @@ sealed trait TermNode
       case TermBranch(childs) =>
         childs.map { _.toDisjunctionStringForVarArgs(varArgs) }.mkString("&")
       case TermLeaf(varName, _) =>
-        varName + varArgs.get(varName).map { _.map { " " + _.toString }.mkString("") }.getOrElse("/* not found arguments */")
+        varName + varArgs.get(varName).map { _.map { " " + _.toArgString }.mkString("") }.getOrElse("/* not found arguments */")
     }
 
   def toDisjunctionStringForVarArgs(varArgs: Map[String, Vector[MatchingTerm]]): String =
@@ -30,7 +38,7 @@ sealed trait TermNode
       case TermBranch(childs) =>
         "(" + childs.map { _.toConjunctionStringForVarArgs(varArgs) }.mkString("|") + ")"
       case TermLeaf(varName, _) =>
-        varName + varArgs.get(varName).map { _.map { " " + _.toString }.mkString("") }.getOrElse("/* not found arguments */")
+        varName + varArgs.get(varName).map { _.map { " " + _.toArgString }.mkString("") }.getOrElse("/* not found arguments */")
     }
 }
 

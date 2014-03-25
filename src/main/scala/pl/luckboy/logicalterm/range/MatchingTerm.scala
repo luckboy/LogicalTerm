@@ -12,16 +12,18 @@ case class MatchingTerm(
     disjDepthRangeSets: List[TermNodeRangeSet],
     varArgs: Map[String, Vector[MatchingTerm]])
 {
+  def toSimpleString = conjNode.toConjunctionStringForVarArgs(varArgs)
+  
   def toArgString =
     conjNode match {
       case TermLeaf(varName, _) =>
-        if(varArgs.get(varName).map { _.isEmpty }.getOrElse(false)) toString else "(" + this + ")"
+        if(varArgs.get(varName).map { _.isEmpty }.getOrElse(false)) toSimpleString else "(" + this.toSimpleString + ")"
       case _                    =>
-        "(" + this + ")"
+        "(" + this.toString + ")"
     }
-  
+    
   override def toString =
-    conjNode.toConjunctionStringForVarArgs(varArgs) + "\n" + 
+    toSimpleString + "\n" + 
     "// conjRangeSets=Map(" + conjRangeSets.map { case (n, rs) => n + "->" + rs }.mkString(",") + ")\n" +
     "// disjRangeSets=Map(" + disjRangeSets.map { case (n, rs) => n + "->" + rs }.mkString(",") + ")\n" +
     "// conjDepthRangeSets=List(" + conjDepthRangeSets.mkString(",") + ")\n" +
@@ -35,7 +37,7 @@ sealed trait TermNode
       case TermBranch(childs) =>
         childs.map { _.toDisjunctionStringForVarArgs(varArgs) }.mkString(" & ")
       case TermLeaf(varName, varIdx) =>
-        varName + "/*" + varIdx + "*/" + varArgs.get(varName).map { _.map { _.toArgString }.mkString(" ") }.getOrElse("/* not found arguments */")
+        varName + "/*" + varIdx + "*/" + varArgs.get(varName).map { _.map { " " + _.toArgString }.mkString("") }.getOrElse("/* not found arguments */")
     }
 
   def toDisjunctionStringForVarArgs(varArgs: Map[String, Vector[MatchingTerm]]): String =
@@ -43,7 +45,7 @@ sealed trait TermNode
       case TermBranch(childs) =>
         "(" + childs.map { _.toConjunctionStringForVarArgs(varArgs) }.mkString(" | ") + ")"
       case TermLeaf(varName, varIdx) =>
-        varName + "/*" + varIdx + "*/" + varArgs.get(varName).map { _.map { _.toArgString }.mkString(" ") }.getOrElse("/* not found arguments */")
+        varName + "/*" + varIdx + "*/" + varArgs.get(varName).map { _.map { " " + _.toArgString }.mkString("") }.getOrElse("/* not found arguments */")
     }
 }
 

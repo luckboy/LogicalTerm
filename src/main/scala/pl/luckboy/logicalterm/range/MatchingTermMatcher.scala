@@ -73,13 +73,29 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         (tuple, Map(varName -> Set(varIdx)), Map(varName -> Set(varIdx)), some(TermNodeRange(varIdx, varIdx)))
     }
   
+  private def rangeSetsFromTermNode(node: TermNode)(tuple: (Map[String, TermNodeRangeSet], Map[String, TermNodeRangeSet], List[TermNodeRangeSet], List[TermNodeRangeSet])) = {
+    val (tuple, conjVarIdxs, disjVarIdxs, optRange) = rangeSetsFromConjunctionNode(node)((Map(), Map(), Nil, Nil))
+    val (conjRangeSets, disjRangeSets, conjDepthRangeSets, disjDepthRangeSets) = tuple
+    val conjRangeSets2 = tuple._1 ++ conjVarIdxs.map { 
+      case (name, idxs) => 
+        val pair = VarIndexSeqPair(ConcatSeq.fromIterable(idxs), ConcatSeq())
+        name -> (conjRangeSets.getOrElse(name, TermNodeRangeSet.empty) | optRange.map { r => TermNodeRangeSet(SortedMap(r -> pair)) }.getOrElse(TermNodeRangeSet.empty))
+    }
+    val disjRangeSets2 = tuple._2 ++ disjVarIdxs.map { 
+      case (name, idxs) => 
+        val pair = VarIndexSeqPair(ConcatSeq.fromIterable(idxs), ConcatSeq())
+        name -> (disjRangeSets.getOrElse(name, TermNodeRangeSet.empty) | optRange.map { r => TermNodeRangeSet(SortedMap(r -> pair)) }.getOrElse(TermNodeRangeSet.empty))
+    }
+    tuple.copy(_1 = conjRangeSets2, _2 = disjRangeSets2)
+  }
+  
   override def matchingTermFromTerm(term: Term) =
     (term match {
       case Disjunction(_) => termNodeFromTerm(term)((Map(), 0)).map { t => (t._1, TermBranch(Vector(t._2))) }
       case _              => termNodeFromTerm(term)((Map(), 0))
     }).flatMap {
       case ((varArgMap, _), node) =>
-        val (conjRangeSet, disjRangeSet, conjDepthRangeSets, disjDepthRangeSets) = rangeSetsFromConjunctionNode(node)((Map(), Map(), Nil, Nil))._1
+        val (conjRangeSet, disjRangeSet, conjDepthRangeSets, disjDepthRangeSets) = rangeSetsFromTermNode(node)((Map(), Map(), Nil, Nil))
         varArgMap.foldLeft(some(Map[String, Vector[MatchingTerm]]())) {
           case (optVarArgMap2, (varName, varArgs)) => 
             optVarArgMap2.flatMap {

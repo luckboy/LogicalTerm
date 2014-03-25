@@ -25,7 +25,7 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         }.map { _.mapElements(identity, TermBranch(_)) }
     }
   
-  private def rangeSetsFromConjunctionNode(node: TermNode)(tuple: (Map[String, TermNodeRangeSet], Map[String, TermNodeRangeSet], List[TermNodeRangeSet], List[TermNodeRangeSet])): ((Map[String, TermNodeRangeSet], Map[String, TermNodeRangeSet], List[TermNodeRangeSet], List[TermNodeRangeSet]), Map[String, Set[Int]], Map[String, Set[Int]], TermNodeRange) =
+  private def rangeSetsFromConjunctionNode(node: TermNode)(tuple: (Map[String, TermNodeRangeSet], Map[String, TermNodeRangeSet], List[TermNodeRangeSet], List[TermNodeRangeSet])): ((Map[String, TermNodeRangeSet], Map[String, TermNodeRangeSet], List[TermNodeRangeSet], List[TermNodeRangeSet]), Map[String, Set[Int]], Map[String, Set[Int]], Option[TermNodeRange]) =
     node match {
       case TermBranch(childs) =>
         val (conjRangeSets, disjRangeSets, conjDepthRangeSets, disjDepthRangeSets) = tuple
@@ -33,23 +33,23 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
           (_, conjDepthRangeSets.tail)
         }.getOrElse(TermNodeRangeSet.empty, Nil)
         val tuple2 = tuple.copy(_3 = nextConjDepthRangeSets)
-        val (tuple3, conjVarIdxs, disjVarIdxs, range) = childs.foldLeft((tuple2, Map[String, Set[Int]](), Map[String, Set[Int]](), TermNodeRange(0, Integer.MAX_VALUE))) {
-          case ((newTuple, newConjVarIdxs, newDisjVarIdxs, newRange), child) =>
-            val (newTuple2, newConjVarIdxs2, newDisjVarIdxs2, newRange2) = rangeSetsFromDisjunctionNode(child)(newTuple)
-            (newTuple2, newConjVarIdxs |+| newConjVarIdxs2, newDisjVarIdxs |+| newDisjVarIdxs2, newRange | newRange2)
+        val (tuple3, conjVarIdxs, disjVarIdxs, optRange) = childs.foldLeft((tuple2, Map[String, Set[Int]](), Map[String, Set[Int]](), none[TermNodeRange])) {
+          case ((newTuple, newConjVarIdxs, newDisjVarIdxs, optNewRange), child) =>
+            val (newTuple2, newConjVarIdxs2, newDisjVarIdxs2, optNewRange2) = rangeSetsFromDisjunctionNode(child)(newTuple)
+            (newTuple2, newConjVarIdxs |+| newConjVarIdxs2, newDisjVarIdxs |+| newDisjVarIdxs2, (optNewRange |@| optNewRange2) { _ | _ }.orElse(optNewRange2))
         }
         val conjRangeSets2 = tuple3._1 ++ conjVarIdxs.map { 
           case (name, idxs) => 
             val pair = VarIndexSeqPair(ConcatSeq.fromIterable(idxs), ConcatSeq())
-            name -> (conjRangeSets.getOrElse(name, TermNodeRangeSet.empty) | TermNodeRangeSet(SortedMap(range -> pair)))
+            name -> (conjRangeSets.getOrElse(name, TermNodeRangeSet.empty) | optRange.map { r => TermNodeRangeSet(SortedMap(r -> pair)) }.getOrElse(TermNodeRangeSet.empty))
         }
-        val conjDepthRangeSet2 = conjDepthRangeSet | TermNodeRangeSet(SortedMap(range -> VarIndexSeqPair.empty))
-        (tuple3.copy(_1 = conjRangeSets2, _3 = conjDepthRangeSet2 :: tuple3._3), Map(), disjVarIdxs, range)
+        val conjDepthRangeSet2 = conjDepthRangeSet | optRange.map { r => TermNodeRangeSet(SortedMap(r -> VarIndexSeqPair.empty)) }.getOrElse(TermNodeRangeSet.empty)
+        (tuple3.copy(_1 = conjRangeSets2, _3 = conjDepthRangeSet2 :: tuple3._3), Map(), disjVarIdxs, optRange)
       case TermLeaf(varName, varIdx) =>
-        (tuple, Map(varName -> Set(varIdx)), Map(varName -> Set(varIdx)), TermNodeRange(varIdx, varIdx))
+        (tuple, Map(varName -> Set(varIdx)), Map(varName -> Set(varIdx)), some(TermNodeRange(varIdx, varIdx)))
     }
 
-  private def rangeSetsFromDisjunctionNode(node: TermNode)(tuple: (Map[String, TermNodeRangeSet], Map[String, TermNodeRangeSet], List[TermNodeRangeSet], List[TermNodeRangeSet])): ((Map[String, TermNodeRangeSet], Map[String, TermNodeRangeSet], List[TermNodeRangeSet], List[TermNodeRangeSet]), Map[String, Set[Int]], Map[String, Set[Int]], TermNodeRange) =
+  private def rangeSetsFromDisjunctionNode(node: TermNode)(tuple: (Map[String, TermNodeRangeSet], Map[String, TermNodeRangeSet], List[TermNodeRangeSet], List[TermNodeRangeSet])): ((Map[String, TermNodeRangeSet], Map[String, TermNodeRangeSet], List[TermNodeRangeSet], List[TermNodeRangeSet]), Map[String, Set[Int]], Map[String, Set[Int]], Option[TermNodeRange]) =
     node match {
       case TermBranch(childs) =>
         val (conjRangeSets, disjRangeSets, conjDepthRangeSets, disjDepthRangeSets) = tuple
@@ -57,20 +57,20 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
           (_, disjDepthRangeSets.tail)
         }.getOrElse(TermNodeRangeSet.empty, Nil)
         val tuple2 = tuple.copy(_4 = nextDisjDepthRangeSets)
-        val (tuple3, conjVarIdxs, disjVarIdxs, range) = childs.foldLeft((tuple2, Map[String, Set[Int]](), Map[String, Set[Int]](), TermNodeRange(0, Integer.MAX_VALUE))) {
-          case ((newTuple, newConjVarIdxs, newDisjVarIdxs, newRange), child) =>
-            val (newTuple2, newConjVarIdxs2, newDisjVarIdxs2, newRange2) = rangeSetsFromDisjunctionNode(child)(newTuple)
-            (newTuple2, newConjVarIdxs |+| newConjVarIdxs2, newDisjVarIdxs |+| newDisjVarIdxs2, newRange | newRange2)
+        val (tuple3, conjVarIdxs, disjVarIdxs, optRange) = childs.foldLeft((tuple2, Map[String, Set[Int]](), Map[String, Set[Int]](), none[TermNodeRange])) {
+          case ((newTuple, newConjVarIdxs, newDisjVarIdxs, optNewRange), child) =>
+            val (newTuple2, newConjVarIdxs2, newDisjVarIdxs2, optNewRange2) = rangeSetsFromConjunctionNode(child)(newTuple)
+            (newTuple2, newConjVarIdxs |+| newConjVarIdxs2, newDisjVarIdxs |+| newDisjVarIdxs2, (optNewRange |@| optNewRange2) { _ | _ }.orElse(optNewRange2))
         }
         val disjRangeSets2 = tuple3._2 ++ disjVarIdxs.map { 
           case (name, idxs) => 
             val pair = VarIndexSeqPair(ConcatSeq.fromIterable(idxs), ConcatSeq())
-            name -> (disjRangeSets.getOrElse(name, TermNodeRangeSet.empty) | TermNodeRangeSet(SortedMap(range -> pair)))
+            name -> (disjRangeSets.getOrElse(name, TermNodeRangeSet.empty) | optRange.map { r => TermNodeRangeSet(SortedMap(r -> pair)) }.getOrElse(TermNodeRangeSet.empty))
         }
-        val disjDepthRangeSet2 = disjDepthRangeSet | TermNodeRangeSet(SortedMap(range -> VarIndexSeqPair.empty))
-        (tuple3.copy(_2 = disjRangeSets2, _4 = disjDepthRangeSet2 :: tuple3._4), conjVarIdxs, Map(), range)
+        val disjDepthRangeSet2 = disjDepthRangeSet | optRange.map { r => TermNodeRangeSet(SortedMap(r -> VarIndexSeqPair.empty)) }.getOrElse(TermNodeRangeSet.empty)
+        (tuple3.copy(_2 = disjRangeSets2, _4 = disjDepthRangeSet2 :: tuple3._4), conjVarIdxs, Map(), optRange)
       case TermLeaf(varName, varIdx) =>
-        (tuple, Map(varName -> Set(varIdx)), Map(varName -> Set(varIdx)), TermNodeRange(varIdx, varIdx))
+        (tuple, Map(varName -> Set(varIdx)), Map(varName -> Set(varIdx)), some(TermNodeRange(varIdx, varIdx)))
     }
   
   override def matchingTermFromTerm(term: Term) =

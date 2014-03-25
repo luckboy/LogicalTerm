@@ -24,8 +24,8 @@ case class MatchingTerm(
     conjNode.toConjunctionStringForVarArgs(varArgs) + "\n" + 
     "// conjRangeSets=Map(" + conjRangeSets.map { case (n, rs) => n + "->" + rs }.mkString(",") + ")\n" +
     "// disjRangeSets=Map(" + disjRangeSets.map { case (n, rs) => n + "->" + rs }.mkString(",") + ")\n" +
-    "// conjDepthRangeSets=List(" + conjRangeSets.mkString(",") + ")\n" +
-    "// disjDepthRangeSets=List(" + disjRangeSets.mkString(",") + ")"
+    "// conjDepthRangeSets=List(" + conjDepthRangeSets.mkString(",") + ")\n" +
+    "// disjDepthRangeSets=List(" + disjDepthRangeSets.mkString(",") + ")"
 }
 
 sealed trait TermNode
@@ -33,7 +33,7 @@ sealed trait TermNode
   def toConjunctionStringForVarArgs(varArgs: Map[String, Vector[MatchingTerm]]): String =
     this match {
       case TermBranch(childs) =>
-        childs.map { _.toDisjunctionStringForVarArgs(varArgs) }.mkString("&")
+        childs.map { _.toDisjunctionStringForVarArgs(varArgs) }.mkString(" & ")
       case TermLeaf(varName, varIdx) =>
         varName + "/*" + varIdx + "*/" + varArgs.get(varName).map { _.map { _.toArgString }.mkString(" ") }.getOrElse("/* not found arguments */")
     }
@@ -41,7 +41,7 @@ sealed trait TermNode
   def toDisjunctionStringForVarArgs(varArgs: Map[String, Vector[MatchingTerm]]): String =
     this match {
       case TermBranch(childs) =>
-        "(" + childs.map { _.toConjunctionStringForVarArgs(varArgs) }.mkString("|") + ")"
+        "(" + childs.map { _.toConjunctionStringForVarArgs(varArgs) }.mkString(" | ") + ")"
       case TermLeaf(varName, varIdx) =>
         varName + "/*" + varIdx + "*/" + varArgs.get(varName).map { _.map { _.toArgString }.mkString(" ") }.getOrElse("/* not found arguments */")
     }

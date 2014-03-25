@@ -6,4 +6,6 @@ package object range
     override def compare(x: TermNodeRange, y: TermNodeRange) =
       if(x.maxIdx < y.minIdx ) -1 else if(x.minIdx > y.maxIdx) 1 else 0
   }
+  
+  implicit val matchingTermMatcher: Matcher[MatchingTerm] = new MatchingTermMatcher
 }

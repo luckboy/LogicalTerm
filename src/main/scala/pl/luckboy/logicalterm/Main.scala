@@ -199,7 +199,8 @@ object Main
   
   val executors = Map(
       "simple" -> simpleExecutor,
-      "hashSimple" -> hashSimpleExecutor)
+      "hashSimple" -> hashSimpleExecutor,
+      "rangeSimple" -> rangeSimpleExecutor)
   
   def main(args: Array[String]): Unit = {
     val execName = args.headOption.getOrElse("simple")

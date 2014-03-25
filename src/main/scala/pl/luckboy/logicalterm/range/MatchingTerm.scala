@@ -20,7 +20,12 @@ case class MatchingTerm(
         "(" + this + ")"
     }
   
-  override def toString = conjNode.toConjunctionStringForVarArgs(varArgs)
+  override def toString =
+    conjNode.toConjunctionStringForVarArgs(varArgs) + "\n" + 
+    "// conjRangeSets=Map(" + conjRangeSets.map { case (n, rs) => n + "->" + rs }.mkString(",") + ")\n" +
+    "// disjRangeSets=Map(" + disjRangeSets.map { case (n, rs) => n + "->" + rs }.mkString(",") + ")\n" +
+    "// conjDepthRangeSets=List(" + conjRangeSets.mkString(",") + ")\n" +
+    "// disjDepthRangeSets=List(" + disjRangeSets.mkString(",") + ")"
 }
 
 sealed trait TermNode
@@ -29,16 +34,16 @@ sealed trait TermNode
     this match {
       case TermBranch(childs) =>
         childs.map { _.toDisjunctionStringForVarArgs(varArgs) }.mkString("&")
-      case TermLeaf(varName, _) =>
-        varName + varArgs.get(varName).map { _.map { " " + _.toArgString }.mkString("") }.getOrElse("/* not found arguments */")
+      case TermLeaf(varName, varIdx) =>
+        varName + "/*" + varIdx + "*/" + varArgs.get(varName).map { _.map { _.toArgString }.mkString(" ") }.getOrElse("/* not found arguments */")
     }
 
   def toDisjunctionStringForVarArgs(varArgs: Map[String, Vector[MatchingTerm]]): String =
     this match {
       case TermBranch(childs) =>
         "(" + childs.map { _.toConjunctionStringForVarArgs(varArgs) }.mkString("|") + ")"
-      case TermLeaf(varName, _) =>
-        varName + varArgs.get(varName).map { _.map { " " + _.toArgString }.mkString("") }.getOrElse("/* not found arguments */")
+      case TermLeaf(varName, varIdx) =>
+        varName + "/*" + varIdx + "*/" + varArgs.get(varName).map { _.map { _.toArgString }.mkString(" ") }.getOrElse("/* not found arguments */")
     }
 }
 
@@ -120,6 +125,8 @@ case class TermNodeRangeSet(ranges: SortedMap[TermNodeRange, VarIndexSeqPair])
     
   def varIndexSeqPair = 
     ranges.values.foldLeft(VarIndexSeqPair.empty) { (v, v2) => v2 ++ v }
+  
+  override def toString = "{" + ranges.map { case (r, p) => r + "->" + p }.mkString(",") + "}"
 }
 
 object TermNodeRangeSet
@@ -132,6 +139,8 @@ object TermNodeRangeSet
 case class TermNodeRange(minIdx: Int, maxIdx: Int)
 {
   def | (range: TermNodeRange) = TermNodeRange(minIdx.min(range.minIdx), maxIdx.max(range.maxIdx))
+  
+  override def toString = "[" + minIdx + "," + maxIdx + "]"
 }
 
 object TermNodeRange
@@ -142,6 +151,8 @@ object TermNodeRange
 case class VarIndexSeqPair(myVarIdxs: ConcatSeq[Int], otherVarIdxs: ConcatSeq[Int])
 {
   def ++ (pair: VarIndexSeqPair) = VarIndexSeqPair(myVarIdxs ++ pair.myVarIdxs, otherVarIdxs ++ pair.otherVarIdxs)
+
+  override def toString = "({" + myVarIdxs.toList.mkString(",") + "},{" + otherVarIdxs.toList.mkString(",") + "})"
 }
 
 object VarIndexSeqPair

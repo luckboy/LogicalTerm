@@ -109,9 +109,9 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         }
     }
   
-  private def checkSuperconjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet])(rangeSet: TermNodeRangeSet): Validation[FatalError, TermNodeRangeSet] = {
+  private def checkSuperconjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet])(rangeSet: TermNodeRangeSet): Validation[FatalError, TermNodeRangeSet] =
     depthRangeSets match {
-      case depthRangeSet :: nextDepthRangeSet :: _ =>
+      case depthRangeSet :: _ =>
         (node match {
           case TermBranch(childs) =>
             childs.foldLeft(rangeSet.success[FatalError]) {
@@ -123,32 +123,27 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
           case TermLeaf(_, _) =>
             checkSuperdisjunctionNode(node, rangeSets, depthRangeSets)(rangeSet)
         }).map { _.superset(depthRangeSet) }
-      case _ :: Nil =>
-        FatalError("too few list of depth range sets", NoPosition).failure
       case Nil =>
         FatalError("empty list of depth range sets", NoPosition).failure
     }
-  }
   
   private def checkSuperdisjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet])(rangeSet: TermNodeRangeSet): Validation[FatalError, TermNodeRangeSet] =
     depthRangeSets match {
-      case _ :: (depthRangeSets2 @ (nextDepthRangeSet :: _)) =>
+      case _ :: depthRangeSets2 =>
         node match {
           case TermBranch(childs) =>
             childs.foldLeft(TermNodeRangeSet.empty.success[FatalError]) {
               case (Success(newRangeSet), child) =>
-                checkSuperdisjunctionNode(node, rangeSets, depthRangeSets2)(rangeSet).map { newRangeSet | _ }
+                checkSuperconjunctionNode(child, rangeSets, depthRangeSets2)(rangeSet).map { newRangeSet | _ }
               case (res, _)                      =>
                 res
             }
           case TermLeaf(varName, varIdx) =>
             rangeSets.get(varName).map {
               rs =>
-                (rangeSet & rs.swapPairsWithMyVarIndex(varIdx).superset(nextDepthRangeSet)).success
+                (rangeSet & depthRangeSets2.headOption.map(rs.swapPairsWithMyVarIndex(varIdx).superset).getOrElse(rs.swapPairsWithMyVarIndex(varIdx))).success
             }.getOrElse(FatalError("not found narrowest range set", NoPosition).failure)
         }
-      case _ :: Nil =>
-        FatalError("too few list of depth range sets", NoPosition).failure
       case Nil =>
         FatalError("empty list of depth range sets", NoPosition).failure
     }
@@ -197,11 +192,11 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
       case (TermBranch(childs1), TermBranch(childs2)) if childs1.size === 1 && childs2.size > 1 =>
         term2.disjDepthRangeSets.headOption.map {
           disjDepthRangeSet =>
-            val disjDepthRangeSets = TermNodeRangeSet.full :: disjDepthRangeSet :: term2.disjDepthRangeSets
+            val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full :: disjDepthRangeSet :: term2.disjDepthRangeSets
           checkSuperdisjunctionNode(term1.conjNode, term2.disjRangeSets, disjDepthRangeSets)(TermNodeRangeSet.full)
         }.getOrElse(FatalError("empty list of depth range sets", NoPosition).failure)
       case _ =>
-        val disjDepthRangeSets = TermNodeRangeSet.full :: term2.disjDepthRangeSets
+        val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full :: term2.disjDepthRangeSets
         checkSuperdisjunctionNode(term1.conjNode, term2.conjRangeSets, disjDepthRangeSets)(TermNodeRangeSet.full)
     }
   

@@ -92,10 +92,13 @@ case class TermNodeRangeSet(ranges: SortedMap[TermNodeRange, VarIndexSeqPair])
               newRanges // this case is impossible
         }.getOrElse(newRanges)
     }
-    val newRanges4 = rangeSet.ranges.foldLeft(newRanges2) {
+    val newRanges4 = ranges.foldLeft(newRanges2) {
       case (newRanges3, pair @ (range, value)) => if(newRanges2.contains(range)) newRanges3 else newRanges3 + pair
     }
-    TermNodeRangeSet(newRanges4)
+    val newRanges6 = rangeSet.ranges.foldLeft(newRanges4) {
+      case (newRanges5, pair @ (range, value)) => if(newRanges2.contains(range)) newRanges5 else newRanges5 + pair
+    }
+    TermNodeRangeSet(newRanges6)
   }
   
   def | (rangeSet: TermNodeRangeSet) =
@@ -142,7 +145,7 @@ case class TermNodeRange(minIdx: Int, maxIdx: Int)
 {
   def | (range: TermNodeRange) = TermNodeRange(minIdx.min(range.minIdx), maxIdx.max(range.maxIdx))
   
-  override def toString = "[" + minIdx + "," + maxIdx + "]"
+  override def toString = "[" + minIdx + "," + (if(maxIdx === Integer.MAX_VALUE) "max" else maxIdx) + "]"
 }
 
 object TermNodeRange
@@ -154,7 +157,7 @@ case class VarIndexSeqPair(myVarIdxs: ConcatSeq[Int], otherVarIdxs: ConcatSeq[In
 {
   def ++ (pair: VarIndexSeqPair) = VarIndexSeqPair(myVarIdxs ++ pair.myVarIdxs, otherVarIdxs ++ pair.otherVarIdxs)
 
-  override def toString = "({" + myVarIdxs.toList.mkString(",") + "},{" + otherVarIdxs.toList.mkString(",") + "})"
+  override def toString = "({" + myVarIdxs.toSet.mkString(",") + "},{" + otherVarIdxs.toSet.mkString(",") + "})"
 }
 
 object VarIndexSeqPair

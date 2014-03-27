@@ -227,7 +227,7 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         }.getOrElse(FatalError("empty list of depth range sets", NoPosition).failure)
       case _ =>
         val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full /*:: TermNodeRangeSet.full*/ :: term2.disjDepthRangeSets
-        checkSuperdisjunctionNode(term1.conjNode, term2.conjRangeSets, disjDepthRangeSets)
+        checkSuperdisjunctionNode(term1.conjNode, term2.disjRangeSets, disjDepthRangeSets)
     }
   }
   

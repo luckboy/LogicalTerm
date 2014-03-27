@@ -148,11 +148,12 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
   private def checkSuperdisjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet]): Validation[FatalError, TermNodeRangeSet] =
     depthRangeSets match {
       case _ :: depthRangeSets2 =>
+        val depthRangeSets3 = if(depthRangeSets2.isEmpty) depthRangeSets else depthRangeSets2
         node match {
           case TermBranch(childs) =>
             val res2 = childs.foldLeft(TermNodeRangeSet.empty.success[FatalError]) {
               case (Success(newRangeSet), child) =>
-                checkSuperconjunctionNode(child, rangeSets, depthRangeSets2).map { 
+                checkSuperconjunctionNode(child, rangeSets, depthRangeSets3).map { 
                   rs =>
                     //println("d1 " + (rs, newRangeSet, newRangeSet | rs))
                     newRangeSet | rs
@@ -167,7 +168,7 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
             rangeSets.get(varName).map {
               rs =>
                 //println("dsp " + (rs, depthRangeSets2.headOption))
-                (depthRangeSets2.headOption.map(rs.swapPairsWithMyVarIndex(varIdx).superset).getOrElse(rs.swapPairsWithMyVarIndex(varIdx))).success
+                (depthRangeSets3.headOption.map(rs.swapPairsWithMyVarIndex(varIdx).superset).getOrElse(rs.swapPairsWithMyVarIndex(varIdx))).success
             }.getOrElse(TermNodeRangeSet.empty.success)
         }
       case Nil =>

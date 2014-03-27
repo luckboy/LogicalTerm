@@ -86,9 +86,9 @@ case class TermNodeRangeSet(ranges: SortedMap[TermNodeRange, VarIndexSeqPair])
           case (range2, pair2) =>
             if(range.minIdx <= range2.minIdx && range.maxIdx >= range2.maxIdx)
               newRanges + (range -> ranges2.values.foldLeft(pair) { (p, p2) => p2 ++ p })
-            else if(range.minIdx >= range2.minIdx && range.maxIdx <= range2.maxIdx)
-              newRanges + (range2 -> (pair ++ pair2))
-            else
+            else if(range.minIdx >= range2.minIdx && range.maxIdx <= range2.maxIdx) {
+              newRanges + (range2 -> (newRanges.get(range).map(pair ++ pair2 ++).getOrElse(pair ++ pair2)))
+            } else
               newRanges // this case is impossible
         }.getOrElse(newRanges)
     }
@@ -115,9 +115,9 @@ case class TermNodeRangeSet(ranges: SortedMap[TermNodeRange, VarIndexSeqPair])
         sepRanges.headOption.map {
           case (sepRange, sepPair) =>
             if(range.minIdx <= sepRange.minIdx && range.maxIdx >= sepRange.maxIdx)
-              newRanges + (range -> sepRanges.values.foldLeft(pair) { (p, p2) => p ++ p2 })
-            else if(range.minIdx >= sepRange.minIdx && range.maxIdx <= sepRange.maxIdx) 
-              newRanges + (sepRange -> (pair ++ sepPair))
+              newRanges + (range -> sepRanges.values.foldLeft(pair) { (p, p2) => p2 ++ p })
+            else if(range.minIdx >= sepRange.minIdx && range.maxIdx <= sepRange.maxIdx)
+              newRanges + (sepRange -> (newRanges.get(range).map(pair ++ sepPair ++).getOrElse(pair ++ sepPair)))
             else
               newRanges // this case is impossible
         }.getOrElse(newRanges)

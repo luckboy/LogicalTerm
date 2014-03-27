@@ -221,11 +221,11 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
       case (TermBranch(childs1), TermBranch(childs2)) if childs1.size === 1 && childs2.size > 1 =>
         term2.disjDepthRangeSets.headOption.map {
           disjDepthRangeSet =>
-            val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full :: TermNodeRangeSet.full :: disjDepthRangeSet :: term2.disjDepthRangeSets
+            val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full /*:: TermNodeRangeSet.full*/ :: disjDepthRangeSet :: term2.disjDepthRangeSets
             checkSuperdisjunctionNode(term1.conjNode, term2.disjRangeSets, disjDepthRangeSets)
         }.getOrElse(FatalError("empty list of depth range sets", NoPosition).failure)
       case _ =>
-        val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full :: TermNodeRangeSet.full :: term2.disjDepthRangeSets
+        val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full /*:: TermNodeRangeSet.full*/ :: term2.disjDepthRangeSets
         checkSuperdisjunctionNode(term1.conjNode, term2.conjRangeSets, disjDepthRangeSets)
     }
   }

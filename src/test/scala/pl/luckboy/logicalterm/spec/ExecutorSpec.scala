@@ -342,4 +342,5 @@ add a1 (b & c) d (b | d)
   
   "A simpleExecutor" should behave like executor(simpleExecutor)
   "A hashSimpleExecutor" should behave like executor(hashSimpleExecutor)
+  "A rangeSimpleExecutor" should behave like executor(rangeSimpleExecutor)
 }

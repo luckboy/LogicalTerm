@@ -31,7 +31,7 @@ case class MatchingTerm(
 }
 
 sealed trait TermNode
-{
+{  
   def toConjunctionStringForVarArgs(varArgs: Map[String, Vector[MatchingTerm]]): String =
     this match {
       case TermBranch(childs) =>

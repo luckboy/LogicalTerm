@@ -122,20 +122,12 @@ case class TermNodeRangeSet(ranges: SortedMap[TermNodeRange, VarIndexSeqPair])
               newRanges // this case is impossible
         }.getOrElse(newRanges)
     }
-    TermNodeRangeSet(newRanges2)
-  }
-  
-  def isSuperset(sepRangeSet: TermNodeRangeSet) =
-    ranges.foldLeft(false) {
-      case (b, (range,_)) =>
-        val from = TermNodeRange(range.minIdx, range.minIdx)
-        val to = TermNodeRange(range.maxIdx, range.maxIdx)
-        val sepRanges = sepRangeSet.ranges.from(from).to(to)
-        b || sepRanges.headOption.map {
-          case (sepRange, _) => range.minIdx <= sepRange.minIdx && range.maxIdx >= sepRange.maxIdx
-        }.getOrElse(false)
+    val newRanges4 = ranges.foldLeft(newRanges2) {
+      case (newRanges3, pair @ (range, value)) => if(newRanges2.contains(range)) newRanges3 else newRanges3 + pair
     }
-  
+    TermNodeRangeSet(newRanges4)
+  }
+    
   def swapPairsWithMyVarIndex(idx: Int) =
     TermNodeRangeSet(ranges.mapValues { case VarIndexSeqPair(oldMyVarIdxs, _) => VarIndexSeqPair(ConcatSeq(idx), oldMyVarIdxs) })
     

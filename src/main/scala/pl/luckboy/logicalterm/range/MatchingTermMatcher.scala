@@ -239,7 +239,7 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
     }
   }
   
-  private def matchesSupertermWithTerm(term1: MatchingTerm, term2: MatchingTerm, isFirstTry: Boolean) =
+  private def partiallyMatchesSupertermWithTerm(term1: MatchingTerm, term2: MatchingTerm, isFirstTry: Boolean) =
     for {
       conjRangeSet <- checkSuperconjunctionNodeFromTerms(term1, term2, isFirstTry)
       disjRangeSet <- checkSuperdisjunctionNodeFromTerms(term2, term1, isFirstTry)
@@ -259,29 +259,28 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         none
     }
     
-  private def partiallyMatchesTermsWithoutVarArgs(term1: MatchingTerm, term2: MatchingTerm, matching: Matching.Value, isFirstTry: Boolean) =
-    matching match {
-      case Matching.Terms             =>
-        for {
-          optVarNames1 <- matchesSupertermWithTerm(term1, term2, isFirstTry)
-          optVarNames2 <- matchesSupertermWithTerm(term2, term1, !isFirstTry)
-        } yield (for(varNames1 <- optVarNames1; varNames2 <-optVarNames2) yield (varNames1 | varNames2))
-      case Matching.SupertermWithTerm =>
-        matchesSupertermWithTerm(term1, term2, isFirstTry)
-      case Matching.TermWithSuperterm =>
-        matchesSupertermWithTerm(term2, term1, !isFirstTry)
+  private def matchesSupertermWithTerm(term1: MatchingTerm, term2: MatchingTerm) =
+    (term1.conjNode, term2.conjNode) match {
+      case (TermBranch(childs1), TermBranch(childs2)) if (childs1.size > 1 && childs2.size === 1) || (childs1.size === 1 && childs2.size > 1) =>
+        partiallyMatchesSupertermWithTerm(term1, term2, true).flatMap {
+          _.map { vns => some(vns).success }.getOrElse(partiallyMatchesSupertermWithTerm(term1, term2, false))
+        }
+      case _ =>
+        partiallyMatchesSupertermWithTerm(term1, term2, true)
     }
   
   private def matchesTermsWithoutVarArgs(term1: MatchingTerm, term2: MatchingTerm, matching: Matching.Value) =
-    (term1.conjNode, term2.conjNode) match {
-      case (TermBranch(childs1), TermBranch(childs2)) if (childs1.size === 1 && childs2.size > 1) || (childs1.size > 1 && childs2.size === 1) =>
-        partiallyMatchesTermsWithoutVarArgs(term1, term2, matching, true).flatMap {
-          _.map { vns => some(vns).success }.getOrElse(partiallyMatchesTermsWithoutVarArgs(term1, term2, matching, false))
-        }
-      case _ =>
-        partiallyMatchesTermsWithoutVarArgs(term1, term2, matching, true)
-    }
-      
+    matching match {
+      case Matching.Terms             =>
+        for {
+          optVarNames1 <- matchesSupertermWithTerm(term1, term2)
+          optVarNames2 <- matchesSupertermWithTerm(term2, term1)
+        } yield (for(varNames1 <- optVarNames1; varNames2 <-optVarNames2) yield (varNames1 | varNames2))
+      case Matching.SupertermWithTerm =>
+        matchesSupertermWithTerm(term1, term2)
+      case Matching.TermWithSuperterm =>
+        matchesSupertermWithTerm(term2, term1)
+    }      
     
   override def matches(term1: MatchingTerm, term2: MatchingTerm, matching: Matching.Value): Validation[FatalError, Boolean] =
     matchesTermsWithoutVarArgs(term1, term2, matching).flatMap {

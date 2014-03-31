@@ -170,10 +170,8 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
             rangeSets.get(varName).map {
               rs =>
                 //println("dsp " + (rs, depthRangeSets3.headOption))
-                (depthRangeSets3.headOption.map {
-                  drs => if(rs.isSuperset(drs)) rs.swapPairsWithMyVarIndex(varIdx) else TermNodeRangeSet.empty
-                }.getOrElse(rs.swapPairsWithMyVarIndex(varIdx)))
-            }.getOrElse(TermNodeRangeSet.empty).success
+                (depthRangeSets3.headOption.map(rs.swapPairsWithMyVarIndex(varIdx).superset).getOrElse(rs.swapPairsWithMyVarIndex(varIdx))).success
+            }.getOrElse(TermNodeRangeSet.empty.success)
         }
       case Nil =>
         FatalError("empty list of depth range sets", NoPosition).failure

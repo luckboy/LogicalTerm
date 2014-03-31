@@ -338,6 +338,10 @@ add a1 (b & c) d (b | d)
           e1("add a1 (b & c) d (b | d)", table) should be ===(ReplacedTermResult(1).success)
       }
     }
+    
+    it should "match the terms for the fixed range bug" in {
+      e1("(((a1 | a2) & b) | (c & d)) & e = ((a1 | a2) & b & e) | (c & d & e)") should be ===(MatchedTermResult.success)
+    }
   }
   
   "A simpleExecutor" should behave like executor(simpleExecutor)

@@ -45,7 +45,7 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
             name -> (conjRangeSets2.getOrElse(name, TermNodeRangeSet.empty) | optRange.map { r => TermNodeRangeSet(SortedMap(r -> pair)) }.getOrElse(TermNodeRangeSet.empty))
         }
         val conjDepthRangeSet2 = conjDepthRangeSet | optRange.map { r => TermNodeRangeSet(SortedMap(r -> VarIndexSeqPair.empty)) }.getOrElse(TermNodeRangeSet.empty)
-        (tuple3.copy(_1 = conjRangeSets3, /*_2 = disjRangeSets3,*/ _3 = conjDepthRangeSet2 :: tuple3._3 /*, _4 = disjDepthRangeSet2 :: nextDisjDepthRangeSets*/), Map(), optRange)
+        (tuple3.copy(_1 = conjRangeSets3, _3 = conjDepthRangeSet2 :: tuple3._3), Map(), optRange)
       case TermLeaf(varName, varIdx) =>
         val range = TermNodeRange(varIdx, varIdx)
         val pair = VarIndexSeqPair(ConcatSeq(varIdx), ConcatSeq())
@@ -75,7 +75,7 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
             name -> (disjRangeSets2.getOrElse(name, TermNodeRangeSet.empty) | optRange.map { r => TermNodeRangeSet(SortedMap(r -> pair)) }.getOrElse(TermNodeRangeSet.empty))
         }
         val disjDepthRangeSet2 = disjDepthRangeSet | optRange.map { r => TermNodeRangeSet(SortedMap(r -> VarIndexSeqPair.empty)) }.getOrElse(TermNodeRangeSet.empty)
-        (tuple3.copy(/*_1 = conjRangeSets3,*/ _2 = disjRangeSets3, /*_3 = conjDepthRangeSet2 :: nextConjDepthRangeSets,*/ _4 = disjDepthRangeSet2 :: tuple3._4), Map(), optRange)
+        (tuple3.copy(_2 = disjRangeSets3, _4 = disjDepthRangeSet2 :: tuple3._4), Map(), optRange)
       case TermLeaf(varName, varIdx) =>
         val range = TermNodeRange(varIdx, varIdx)
         val pair = VarIndexSeqPair(ConcatSeq(varIdx), ConcatSeq())
@@ -123,26 +123,15 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
       case depthRangeSet :: _ =>
         (node match {
           case TermBranch(childs) =>
-            val res2 = childs.foldLeft(TermNodeRangeSet.full.success[FatalError]) {
+            childs.foldLeft(TermNodeRangeSet.full.success[FatalError]) {
               case (Success(newRangeSet), child) =>
-                checkSuperdisjunctionNode(child, rangeSets, depthRangeSets).map { 
-                  rs => 
-                    //println("c1 " + (rs, newRangeSet, newRangeSet & rs))
-                    newRangeSet & rs 
-                }
+                checkSuperdisjunctionNode(child, rangeSets, depthRangeSets).map { newRangeSet & _ }
               case (res, _)                      =>
                 res
             }
-            //println("c " + res2)
-            res2
           case TermLeaf(_, _) =>
-            //print("c")
             checkSuperdisjunctionNode(node, rangeSets, depthRangeSets)
-        }).map {
-          rs =>
-            //println("csp " + (rs, depthRangeSet, rs.superset(depthRangeSet)))
-            rs.superset(depthRangeSet)
-        }
+        }).map { _.superset(depthRangeSet) }
       case Nil =>
         FatalError("empty list of depth range sets", NoPosition).failure
     }
@@ -153,23 +142,15 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         val depthRangeSets3 = if(depthRangeSets2.isEmpty) depthRangeSets else depthRangeSets2
         node match {
           case TermBranch(childs) =>
-            val res2 = childs.foldLeft(TermNodeRangeSet.empty.success[FatalError]) {
+            childs.foldLeft(TermNodeRangeSet.empty.success[FatalError]) {
               case (Success(newRangeSet), child) =>
-                checkSuperconjunctionNode(child, rangeSets, depthRangeSets3).map { 
-                  rs =>
-                    //println("d1 " + (rs, newRangeSet, newRangeSet | rs))
-                    newRangeSet | rs
-                }
+                checkSuperconjunctionNode(child, rangeSets, depthRangeSets3).map { newRangeSet | _ }
               case (res, _)                      =>
                 res
             }
-            //println("d " + res2)
-            res2
           case TermLeaf(varName, varIdx) =>
-            //println("dv " + varName)
             rangeSets.get(varName).map {
               rs =>
-                //println("dsp " + (rs, depthRangeSets3.headOption))
                 (depthRangeSets3.headOption.map(rs.swapPairsWithMyVarIndex(varIdx).superset).getOrElse(rs.swapPairsWithMyVarIndex(varIdx))).success
             }.getOrElse(TermNodeRangeSet.empty.success)
         }
@@ -203,8 +184,7 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         if(myVarIdxs.contains(varIdx) && otherVarIdxSet.contains(varIdx)) some(varNames + varName) else none
     }
   
-  private def checkSuperconjunctionNodeFromTerms(term1: MatchingTerm, term2: MatchingTerm, isFirstTry: Boolean) = {
-    //println("cscnft")
+  private def checkSuperconjunctionNodeFromTerms(term1: MatchingTerm, term2: MatchingTerm, isFirstTry: Boolean) =
     (term1.conjNode, term2.conjNode) match {
       case (TermBranch(childs1), TermBranch(childs2)) if childs1.size > 1 && childs2.size === 1 && !isFirstTry =>
         val conjDepthRangeSets = TermNodeRangeSet.full :: term2.conjDepthRangeSets
@@ -219,10 +199,8 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         val conjDepthRangeSets = TermNodeRangeSet.full :: term2.conjDepthRangeSets
         checkSuperconjunctionNode(term1.conjNode, term2.conjRangeSets, conjDepthRangeSets)
     }
-  }
   
-  private def checkSuperdisjunctionNodeFromTerms(term1: MatchingTerm, term2: MatchingTerm, isFirstTry: Boolean) = {
-    //println("csdnft")
+  private def checkSuperdisjunctionNodeFromTerms(term1: MatchingTerm, term2: MatchingTerm, isFirstTry: Boolean) =
     (term1.conjNode, term2.conjNode) match {
       case (TermBranch(childs1), TermBranch(childs2)) if childs1.size > 1 && childs2.size === 1 && isFirstTry =>
         val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full :: term2.disjDepthRangeSets
@@ -237,7 +215,6 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full :: term2.disjDepthRangeSets
         checkSuperdisjunctionNode(term1.conjNode, term2.disjRangeSets, disjDepthRangeSets)
     }
-  }
   
   private def partiallyMatchesSupertermWithTerm(term1: MatchingTerm, term2: MatchingTerm, isFirstTry: Boolean) =
     for {
@@ -249,8 +226,6 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         val disjOtherVarIdxs = disjRangeSet.varIndexSeqPair.otherVarIdxs.toSet
         val disjMyVarIdxs = disjRangeSet.varIndexSeqPair.myVarIdxs.toSet
         val conjOtherVarIdxs = conjRangeSet.varIndexSeqPair.otherVarIdxs.toSet
-        //println("m1 " + (conjMyVarIdxs, disjOtherVarIdxs))
-        //println("m2 " + (disjMyVarIdxs, conjOtherVarIdxs))
         for {
           conjVarNames <- checkVarIndexSetsForConjunction(conjMyVarIdxs, disjOtherVarIdxs, term1.conjNode)(Set())
           disjVarNames <- checkVarIndexSetsForDisjunction(disjMyVarIdxs, conjOtherVarIdxs, term2.conjNode)(Set())

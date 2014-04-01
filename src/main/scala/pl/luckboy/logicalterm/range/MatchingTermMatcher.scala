@@ -173,7 +173,8 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         val conjDepthRangeSets = TermNodeRangeSet.full :: term2.conjDepthRangeSets
         checkSuperconjunctionNode(TermBranch(Vector(TermBranch(Vector(term1.conjNode)))), term2.conjRangeSets, conjDepthRangeSets)
       case (TermBranch(childs1), TermBranch(childs2)) if childs1.size === 1 && childs2.size > 1 && isFirstTry =>
-        val conjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full :: term2.conjDepthRangeSets
+        val conjDepthRangeSet = term2.conjDepthRangeSets.headOption.getOrElse(TermNodeRangeSet.full)
+        val conjDepthRangeSets = TermNodeRangeSet.full :: conjDepthRangeSet :: term2.conjDepthRangeSets
         checkSuperconjunctionNode(term1.conjNode, term2.conjRangeSets, conjDepthRangeSets)
       case _ =>
         val conjDepthRangeSets = TermNodeRangeSet.full :: term2.conjDepthRangeSets
@@ -186,7 +187,8 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full :: term2.disjDepthRangeSets
         checkSuperdisjunctionNode(TermBranch(Vector(TermBranch(Vector(term1.conjNode)))), term2.disjRangeSets, disjDepthRangeSets)
       case (TermBranch(childs1), TermBranch(childs2)) if childs1.size === 1 && childs2.size > 1 && !isFirstTry =>
-        val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full :: TermNodeRangeSet.full :: term2.disjDepthRangeSets
+        val disjDepthRangeSet = term2.disjDepthRangeSets.headOption.getOrElse(TermNodeRangeSet.full)
+        val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full :: disjDepthRangeSet :: term2.disjDepthRangeSets
         checkSuperdisjunctionNode(term1.conjNode, term2.disjRangeSets, disjDepthRangeSets)
       case _ =>
         val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full :: term2.disjDepthRangeSets

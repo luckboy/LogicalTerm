@@ -7,7 +7,7 @@ import scalaz.Scalaz._
 import pl.luckboy.logicalterm._
 
 class ExecutorSpec extends FlatSpec with ShouldMatchers with Inside
-{
+{  
   def executor(exec: Executor)
   {
     val emptyTable = exec.emptyTable    
@@ -37,8 +37,8 @@ class ExecutorSpec extends FlatSpec with ShouldMatchers with Inside
     }
     
     it should "match the different terms" in {
-      e1("((a1 | a2) & b & c1) | ((a1 | a2) & b & (c2 | c3)) = (a1 | a2) & b & (c1 | c2 | c3)") should be ===(MatchedTermResult.success)
-      e1("a | (b1 & b2) | (c1 | (d1 & d2)) = (a | b1 | (c1 | (d1 & d2))) & (a | b2 | (c1 | (d1 & d2)))") should be ===(MatchedTermResult.success)
+      e1("(((a1 | a2) & b) | (c & d)) & e = ((a1 | a2) & b & e) | (c & d & e)") should be ===(MatchedTermResult.success)
+      e1("((a | b) & ((c1 & c2) | d)) | e = (a | b | e) & ((c1 & c2) | d | e)") should be ===(MatchedTermResult.success)
     }
     
     it should "match the variable applications" in {
@@ -63,10 +63,10 @@ class ExecutorSpec extends FlatSpec with ShouldMatchers with Inside
     }
     
     it should "match the different terms as superterm with term" in {
-      e1("((a1 | a2) & b & c1) | ((a1 | a2) & b & (c2 | c3)) >= (a1 | a2) & b & (c1 | c2 | c3)") should be ===(MatchedTermResult.success)
-      e1("a | (b1 & b2) | (c1 | (d1 & d2)) >= (a | b1 | (c1 | (d1 & d2))) & (a | b2 | (c1 | (d1 & d2)))") should be ===(MatchedTermResult.success)
-      e1("(a1 | (b1 & b3) | c) & (a2 | b21 | b22 | c | d) >= (a1 & a2) | (b1 & (b21 | b22) & b3) | c") should be ===(MatchedTermResult.success)
-      e1("a & (b1 | b2 | b3) & (c1 | c2) >= (a & b1 & c1 & d) | (a & b2 & (c1 | c2))") should be ===(MatchedTermResult.success)
+      e1("(((a1 | a2) & b) | (c & d)) & e >= ((a1 | a2) & b & e) | (c & d & e)") should be ===(MatchedTermResult.success)
+      e1("((a | b) & ((c1 & c2) | d)) | e >= (a | b | e) & ((c1 & c2) | d | e)") should be ===(MatchedTermResult.success)
+      e1("(((a1 | a2) & b) | (c & d)) & e >= (a1 & b & e) | (c & d & e & f)") should be ===(MatchedTermResult.success)
+      e1("(a | b | e | f) & (c1 | d | e) >= ((a | b) & ((c1 & c2) | d)) | e") should be ===(MatchedTermResult.success)
     }
     
     it should "match the variable applications as superterm with term" in {
@@ -91,10 +91,10 @@ class ExecutorSpec extends FlatSpec with ShouldMatchers with Inside
     }
     
     it should "match the different terms as term with superterm" in {
-      e1("((a1 | a2) & b & c1) | ((a1 | a2) & b & (c2 | c3)) <= (a1 | a2) & b & (c1 | c2 | c3)") should be ===(MatchedTermResult.success)
-      e1("a | (b1 & b2) | (c1 | (d1 & d2)) <= (a | b1 | (c1 | (d1 & d2))) & (a | b2 | (c1 | (d1 & d2)))") should be ===(MatchedTermResult.success)
-      e1("(b1 | (c1 & c2 & c3)) & (a | b21 | (c1 & c2)) & d <= a | (b1 & (b21 | b22)) | (c1 & c2)") should be ===(MatchedTermResult.success)
-      e1("(a1 | a2) & b & (c1 | c2 | c3) <= (a1 & (c1 | c2 | c3)) | ((a2 | a3) & b & (c1 | c2 | c3))") should be ===(MatchedTermResult.success)
+      e1("(((a1 | a2) & b) | (c & d)) & e <= ((a1 | a2) & b & e) | (c & d & e)") should be ===(MatchedTermResult.success)
+      e1("((a | b) & ((c1 & c2) | d)) | e <= (a | b | e) & ((c1 & c2) | d | e)") should be ===(MatchedTermResult.success)
+      e1("((a1 & b) | (c & d & f)) & e <= ((a1 | a2) & b & e ) | (c & d & e)") should be ===(MatchedTermResult.success)
+      e1("(a | b | e | f) & ((c1 & c2) | d | e) <= ((a | b | f) & (c1 | d)) | e") should be ===(MatchedTermResult.success)
     }
     
     it should "match the variable applications as term with superterm" in {
@@ -203,29 +203,29 @@ add (f1 | f2 | f3) & (g1 | g2) & h
     it should "find the value for the equal term" in {
       inside(execute("""
 add a | (b1 & b2 & b3) | (c1 & (c21 | c22))
-add (d1 | d2 | d3) & e & (f1 | (f21 | f22) | f3)
+add (d1 | d2 | d3) & e
 """)) {
         case Success((table, _)) =>
           e1("find a | (b1 & b2 & b3) | (c1 & (c21 | c22))", table) should be ===(FoundValueResult(1).success)
-          e1("find (a | b1 | ((c1 & c21) | (c1 & c22))) & (a | (b2  & b3) | (c1 & (c21 | c22)))", table) should be ===(FoundValueResult(1).success)
-          e1("find (d1 & e & (f1 | (f21 | f22) | f3)) | ((d2 | d3) & e & (f1 | (f21 | f22) | f3))", table) should be ===(FoundValueResult(2).success)
-          e1("find (d1 | d2 | d3) & e & (f1 | (f21 | f22) | f3)", table) should be ===(FoundValueResult(2).success)
+          e1("find (a | b1 | (c1 & (c21 | c22))) & (a | (b2  & b3) | (c1 & (c21 | c22)))", table) should be ===(FoundValueResult(1).success)
+          e1("find (d1 & e) | ((d2 | d3) & e)", table) should be ===(FoundValueResult(2).success)
+          e1("find (d1 | d2 | d3) & e", table) should be ===(FoundValueResult(2).success)
       }
     }
     
     it should "find the value for the superterm" in {
       inside(execute("""
 add (a1 & a2) | b | (c1 & (c21 | c22) & c3)
-add (d1 | d2) & (e1 | (e21 & e22)) & (f1 | f2)
+add ((d1 & d2) | (e1 & e2)) & f
 """)) {
         case Success((table, _)) =>
           e1("find (a1 | b | (c1 & c21 & c3) | (c1 & c22)) & (a2 | b | (c1 & (c21 | c22)))", table) should be ===(FoundValueResult(1).success)
           e1("find a2 | b | ((c21 | c22) & c3)", table) should be ===(FoundValueResult(1).success)
-          e1("find (e1 | (e21 & e22)) & (f1 | f2)", table) should be ===(FoundValueResult(2).success)
-          e1("find ((d1 | d2 | d3) & e1 & (f1 | f2)) | ((d1 | d2) & e21 & e22 & (f1 | f2 | f3))", table) should be ===(FoundValueResult(2).success)
+          e1("find (d1 | e1) & f", table) should be ===(FoundValueResult(2).success)
+          e1("find (d2 & f) | (e1 & f)", table) should be ===(FoundValueResult(2).success)
       }
     }
-    
+        
     it should "add values with the variable applications" in {
       e("""
 add a1 (b & c) d (b & (d | e))
@@ -344,7 +344,65 @@ add a1 (b & c) d (b | d)
     }
   }
   
+  def executorForDistributive(exec: Executor)
+  {
+    val emptyTable = exec.emptyTable    
+    def execute1(s: String, table: exec.Table[Int] = emptyTable) = exec.executeInstructionString(s)(table)
+    def execute(s: String, table: exec.Table[Int] = emptyTable) = exec.executeString(s)(table)
+    def e1(s: String, table: exec.Table[Int] = emptyTable) = execute1(s, table).map { _._2 }
+    def e(s: String, table: exec.Table[Int] = emptyTable) = execute(s, table).map { _._2 }
+
+    it should "match the different terms (distribitive)" in {
+      e1("((a1 | a2) & b & c1) | ((a1 | a2) & b & (c2 | c3)) = (a1 | a2) & b & (c1 | c2 | c3)") should be ===(MatchedTermResult.success)
+      e1("a | (b1 & b2) | (c1 | (d1 & d2)) = (a | b1 | (c1 | (d1 & d2))) & (a | b2 | (c1 | (d1 & d2)))") should be ===(MatchedTermResult.success)
+    }
+    
+    it should "match the different terms as superterm with term (distribitive)" in {
+      e1("((a1 | a2) & b & c1) | ((a1 | a2) & b & (c2 | c3)) >= (a1 | a2) & b & (c1 | c2 | c3)") should be ===(MatchedTermResult.success)
+      e1("a | (b1 & b2) | (c1 | (d1 & d2)) >= (a | b1 | (c1 | (d1 & d2))) & (a | b2 | (c1 | (d1 & d2)))") should be ===(MatchedTermResult.success)
+      e1("(a1 | (b1 & b3) | c) & (a2 | b21 | b22 | c | d) >= (a1 & a2) | (b1 & (b21 | b22) & b3) | c") should be ===(MatchedTermResult.success)
+      e1("a & (b1 | b2 | b3) & (c1 | c2) >= (a & b1 & c1 & d) | (a & b2 & (c1 | c2))") should be ===(MatchedTermResult.success)
+    }
+    
+    it should "match the different terms as term with superterm (distributive)" in {
+      e1("((a1 | a2) & b & c1) | ((a1 | a2) & b & (c2 | c3)) <= (a1 | a2) & b & (c1 | c2 | c3)") should be ===(MatchedTermResult.success)
+      e1("a | (b1 & b2) | (c1 | (d1 & d2)) <= (a | b1 | (c1 | (d1 & d2))) & (a | b2 | (c1 | (d1 & d2)))") should be ===(MatchedTermResult.success)
+      e1("(b1 | (c1 & c2 & c3)) & (a | b21 | (c1 & c2)) & d <= a | (b1 & (b21 | b22)) | (c1 & c2)") should be ===(MatchedTermResult.success)
+      e1("(a1 | a2) & b & (c1 | c2 | c3) <= (a1 & (c1 | c2 | c3)) | ((a2 | a3) & b & (c1 | c2 | c3))") should be ===(MatchedTermResult.success)
+    }
+    
+    it should "find the value for the equal term (distributive)" in {
+      inside(execute("""
+add a | (b1 & b2 & b3) | (c1 & (c21 | c22))
+add (d1 | d2 | d3) & e & (f1 | (f21 | f22) | f3)
+""")) {
+        case Success((table, _)) =>
+          e1("find a | (b1 & b2 & b3) | (c1 & (c21 | c22))", table) should be ===(FoundValueResult(1).success)
+          e1("find (a | b1 | ((c1 & c21) | (c1 & c22))) & (a | (b2  & b3) | (c1 & (c21 | c22)))", table) should be ===(FoundValueResult(1).success)
+          e1("find (d1 & e & (f1 | (f21 | f22) | f3)) | ((d2 | d3) & e & (f1 | (f21 | f22) | f3))", table) should be ===(FoundValueResult(2).success)
+          e1("find (d1 | d2 | d3) & e & (f1 | (f21 | f22) | f3)", table) should be ===(FoundValueResult(2).success)
+      }
+    }
+    
+    it should "find the value for the superterm (distributive)" in {
+      inside(execute("""
+add (a1 & a2) | b | (c1 & (c21 | c22) & c3)
+add (d1 | d2) & (e1 | (e21 & e22)) & (f1 | f2)
+""")) {
+        case Success((table, _)) =>
+          e1("find (a1 | b | (c1 & c21 & c3) | (c1 & c22)) & (a2 | b | (c1 & (c21 | c22)))", table) should be ===(FoundValueResult(1).success)
+          e1("find a2 | b | ((c21 | c22) & c3)", table) should be ===(FoundValueResult(1).success)
+          e1("find (e1 | (e21 & e22)) & (f1 | f2)", table) should be ===(FoundValueResult(2).success)
+          e1("find ((d1 | d2 | d3) & e1 & (f1 | f2)) | ((d1 | d2) & e21 & e22 & (f1 | f2 | f3))", table) should be ===(FoundValueResult(2).success)
+      }
+    }
+  }
+  
   "A simpleExecutor" should behave like executor(simpleExecutor)
+  it should behave like executorForDistributive(simpleExecutor)
+  
   "A hashSimpleExecutor" should behave like executor(hashSimpleExecutor)
+  it should behave like executorForDistributive(hashSimpleExecutor)
+  
   "A rangeSimpleExecutor" should behave like executor(rangeSimpleExecutor)
 }

@@ -151,8 +151,8 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
           case TermLeaf(varName, varIdx) =>
             rangeSets.get(varName).map {
               rs =>
-                (depthRangeSets3.headOption.map(rs.swapPairsWithMyVarIndex(varIdx).superset).getOrElse(rs.swapPairsWithMyVarIndex(varIdx))).success
-            }.getOrElse(TermNodeRangeSet.empty.success)
+                (depthRangeSets3.headOption.map(rs.swapPairsWithMyVarIndex(varIdx).superset).getOrElse(rs.swapPairsWithMyVarIndex(varIdx)))
+            }.getOrElse(TermNodeRangeSet.empty).success
         }
       case Nil =>
         FatalError("empty list of depth range sets", NoPosition).failure

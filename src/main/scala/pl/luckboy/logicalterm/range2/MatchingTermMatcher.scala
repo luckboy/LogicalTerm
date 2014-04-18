@@ -229,48 +229,70 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         if(myVarIdxs.contains(varIdx) && otherVarIdxSet.contains(varIdx)) some(varNames + varName) else none
     }
   
-  private def checkSuperconjunctionNodeFromTerms(term1: MatchingTerm, term2: MatchingTerm, isFirstTry: Boolean) =
+  private def distributedTermFromSuperconjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet], varArgs: Map[String, Vector[MatchingTerm]]) =
+    distributeSuperconjunctionNode(node, rangeSets, depthRangeSets).flatMap {
+      case List((_, node)) => some(matchingTermFromTermNodeAndVarArgs(node.withIndexes, varArgs))
+      case _               => none
+    }
+  
+  private def distributedTermFromSuperdisjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet], varArgs: Map[String, Vector[MatchingTerm]]) =
+    distributeSuperdisjunctionNode(node, rangeSets, depthRangeSets).flatMap {
+      case List((_, node)) => some(matchingTermFromTermNodeAndVarArgs(node.withIndexes, varArgs))
+      case _               => none
+    }
+  
+  private def distributeSuperconjunctionNodeAndDisjunctionNodeFromTerms(term1: MatchingTerm, term2: MatchingTerm, isFirstTry: Boolean) =
     (term1.conjNode, term2.conjNode) match {
       case (TermBranch(childs1), TermBranch(childs2)) if childs1.size > 1 && childs2.size === 1 && !isFirstTry =>
         val conjDepthRangeSets = TermNodeRangeSet.full :: term2.conjDepthRangeSets
-        checkSuperconjunctionNode(TermBranch(Vector(TermBranch(Vector(term1.conjNode)))), term2.conjRangeSets, conjDepthRangeSets)
+        val disjDepthRangeSet = term2.conjDepthRangeSets.headOption.getOrElse(TermNodeRangeSet.full)
+        val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full :: disjDepthRangeSet :: term1.conjDepthRangeSets
+        for {
+          distributedTerm1 <- distributedTermFromSuperconjunctionNode(TermBranch(Vector(TermBranch(Vector(term1.conjNode)))), term2.conjRangeSets, conjDepthRangeSets, term1.varArgs)
+          distributedTerm2 <- distributedTermFromSuperdisjunctionNode(term2.conjNode, term1.disjRangeSets, disjDepthRangeSets, term2.varArgs)
+        } yield (distributedTerm1, distributedTerm2)
       case (TermBranch(childs1), TermBranch(childs2)) if childs1.size === 1 && childs2.size > 1 && isFirstTry =>
         val conjDepthRangeSet = term2.conjDepthRangeSets.headOption.getOrElse(TermNodeRangeSet.full)
         val conjDepthRangeSets = TermNodeRangeSet.full :: conjDepthRangeSet :: term2.conjDepthRangeSets
-        checkSuperconjunctionNode(term1.conjNode, term2.conjRangeSets, conjDepthRangeSets)
+        val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full :: term1.disjDepthRangeSets
+        for {
+          distributedTerm1 <- distributedTermFromSuperconjunctionNode(term1.conjNode, term2.conjRangeSets, conjDepthRangeSets, term1.varArgs)
+          distributedTerm2 <- distributedTermFromSuperdisjunctionNode(TermBranch(Vector(TermBranch(Vector(term2.conjNode)))), term1.disjRangeSets, disjDepthRangeSets, term2.varArgs)
+        } yield (distributedTerm1, distributedTerm2)
       case _ =>
         val conjDepthRangeSets = TermNodeRangeSet.full :: term2.conjDepthRangeSets
-        checkSuperconjunctionNode(term1.conjNode, term2.conjRangeSets, conjDepthRangeSets)
+        val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full :: term1.disjDepthRangeSets
+        for {
+          distributedTerm1 <- distributedTermFromSuperconjunctionNode(term1.conjNode, term2.conjRangeSets, conjDepthRangeSets, term1.varArgs)
+          distributedTerm2 <- distributedTermFromSuperdisjunctionNode(term2.conjNode, term1.disjRangeSets, disjDepthRangeSets, term2.varArgs)
+        } yield (distributedTerm1, distributedTerm2)
     }
   
-  private def checkSuperdisjunctionNodeFromTerms(term1: MatchingTerm, term2: MatchingTerm, isFirstTry: Boolean) =
-    (term1.conjNode, term2.conjNode) match {
-      case (TermBranch(childs1), TermBranch(childs2)) if childs1.size > 1 && childs2.size === 1 && isFirstTry =>
-        val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full :: term2.disjDepthRangeSets
-        checkSuperdisjunctionNode(TermBranch(Vector(TermBranch(Vector(term1.conjNode)))), term2.disjRangeSets, disjDepthRangeSets)
-      case (TermBranch(childs1), TermBranch(childs2)) if childs1.size === 1 && childs2.size > 1 && !isFirstTry =>
-        val disjDepthRangeSet = term2.disjDepthRangeSets.headOption.getOrElse(TermNodeRangeSet.full)
-        val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full :: disjDepthRangeSet :: term2.disjDepthRangeSets
-        checkSuperdisjunctionNode(term1.conjNode, term2.disjRangeSets, disjDepthRangeSets)
-      case _ =>
-        val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full :: term2.disjDepthRangeSets
-        checkSuperdisjunctionNode(term1.conjNode, term2.disjRangeSets, disjDepthRangeSets)
+  private def checkSuperconjunctionNodeAndDisjunctionNodeFromTerms(term1: MatchingTerm, term2: MatchingTerm, isFirstTry: Boolean) =
+    distributeSuperconjunctionNodeAndDisjunctionNodeFromTerms(term1, term2, isFirstTry).map {
+      case (distributedTerm1, distributedTerm2) =>
+        val conjDepthRangeSets = TermNodeRangeSet.full :: distributedTerm2.conjDepthRangeSets
+        val disjDepthRangeSets = TermNodeRangeSet.full :: TermNodeRangeSet.full :: distributedTerm2.disjDepthRangeSets
+        val conjRangeSet = checkSuperconjunctionNode(distributedTerm1.conjNode, distributedTerm2.conjRangeSets, conjDepthRangeSets)
+        val disjRangeSet = checkSuperdisjunctionNode(distributedTerm2.conjNode, distributedTerm1.disjRangeSets, disjDepthRangeSets)
+        (conjRangeSet, disjRangeSet)
     }
   
   private def partiallyMatchesSupertermWithTerm(term1: MatchingTerm, term2: MatchingTerm, isFirstTry: Boolean) = {
-    val conjRangeSet = checkSuperconjunctionNodeFromTerms(term1, term2, isFirstTry)
-    val disjRangeSet = checkSuperdisjunctionNodeFromTerms(term2, term1, isFirstTry)
-    if(!conjRangeSet.isEmpty && !disjRangeSet.isEmpty) {
-      val conjMyVarIdxs = conjRangeSet.varIndexSeqPair.myVarIdxs.toSet
-      val disjOtherVarIdxs = disjRangeSet.varIndexSeqPair.otherVarIdxs.toSet
-      val disjMyVarIdxs = disjRangeSet.varIndexSeqPair.myVarIdxs.toSet
-      val conjOtherVarIdxs = conjRangeSet.varIndexSeqPair.otherVarIdxs.toSet
-      for {
-        conjVarNames <- checkVarIndexSetsForConjunction(conjMyVarIdxs, disjOtherVarIdxs, term1.conjNode)(Set())
-        disjVarNames <- checkVarIndexSetsForDisjunction(disjMyVarIdxs, conjOtherVarIdxs, term2.conjNode)(Set())
-      } yield (conjVarNames | disjVarNames)
-    } else
-      none
+    checkSuperconjunctionNodeAndDisjunctionNodeFromTerms(term1, term2, isFirstTry).flatMap {
+      case (conjRangeSet, disjRangeSet) =>
+        if(!conjRangeSet.isEmpty && !disjRangeSet.isEmpty) {
+          val conjMyVarIdxs = conjRangeSet.varIndexSeqPair.myVarIdxs.toSet
+          val disjOtherVarIdxs = disjRangeSet.varIndexSeqPair.otherVarIdxs.toSet
+          val disjMyVarIdxs = disjRangeSet.varIndexSeqPair.myVarIdxs.toSet
+          val conjOtherVarIdxs = conjRangeSet.varIndexSeqPair.otherVarIdxs.toSet
+          for {
+            conjVarNames <- checkVarIndexSetsForConjunction(conjMyVarIdxs, disjOtherVarIdxs, term1.conjNode)(Set())
+            disjVarNames <- checkVarIndexSetsForDisjunction(disjMyVarIdxs, conjOtherVarIdxs, term2.conjNode)(Set())
+          } yield (conjVarNames | disjVarNames)
+        } else
+          none
+    }
   }
     
   private def matchesSupertermWithTerm(term1: MatchingTerm, term2: MatchingTerm) =

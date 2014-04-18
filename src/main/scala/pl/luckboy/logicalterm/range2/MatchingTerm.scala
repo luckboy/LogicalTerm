@@ -38,6 +38,19 @@ sealed trait TermNode
       case TermLeaf(_, _)     => TermBranch(Vector(this, child))
     }
   
+  def withIndexesFromIndex(idx: Int): (Int, TermNode) =
+    this match {
+      case TermBranch(childs) =>
+        childs.foldLeft((idx, Vector[TermNode]())) {
+          case ((idx, newChilds), child) => 
+            child.withIndexesFromIndex(idx).mapElements(identity, childs :+ _)
+        }.mapElements(identity, TermBranch(_))
+      case TermLeaf(varName, _) =>
+        (idx + 1, TermLeaf(varName, idx))
+    }
+  
+  def withIndexes = withIndexesFromIndex(0)._2
+  
   def toConjunctionStringForVarArgs(varArgs: Map[String, Vector[MatchingTerm]]): String =
     this match {
       case TermBranch(childs) =>

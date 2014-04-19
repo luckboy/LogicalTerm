@@ -14,4 +14,6 @@ package object logicalterm
   val hashSimpleExecutor = Executor.executor[hash.MatchingTerm, simple.TableP[hash.MatchingTerm]#A]
   
   val rangeSimpleExecutor = Executor.executor[range.MatchingTerm, simple.TableP[range.MatchingTerm]#A]
+  
+  val range2SimpleExecutor = Executor.executor[range2.MatchingTerm, simple.TableP[range2.MatchingTerm]#A]
 }

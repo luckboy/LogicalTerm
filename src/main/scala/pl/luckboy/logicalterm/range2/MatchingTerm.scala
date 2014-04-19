@@ -42,8 +42,8 @@ sealed trait TermNode
     this match {
       case TermBranch(childs) =>
         childs.foldLeft((idx, Vector[TermNode]())) {
-          case ((idx, newChilds), child) => 
-            child.withIndexesFromIndex(idx).mapElements(identity, childs :+ _)
+          case ((newIdx, newChilds), child) => 
+            child.withIndexesFromIndex(newIdx).mapElements(identity, newChilds :+ _)
         }.mapElements(identity, TermBranch(_))
       case TermLeaf(varName, _) =>
         (idx + 1, TermLeaf(varName, idx))

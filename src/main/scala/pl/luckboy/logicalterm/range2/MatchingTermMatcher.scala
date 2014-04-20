@@ -118,69 +118,60 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         }.map { matchingTermFromTermNodeAndVarArgs(node, _) }
     }
   
-  private def distributeSuperconjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet]): Option[List[(TermNodeRangeSet, TermNode)]] = {
+  private def distributeSuperconjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet]): List[(Option[TermNodeRangeSet], TermNode)] = {
     val depthRangeSet = depthRangeSets.headOption.getOrElse(TermNodeRangeSet.empty)
     (node match {
       case TermBranch(childs) =>
-        childs.foldLeft(some(List[(TermNodeRangeSet, TermNode)]())) {
-          case (Some(pairs), child) =>
-            distributeSuperdisjunctionNode(child, rangeSets, depthRangeSets).map {
-              pairs2 =>
-                if(!pairs.isEmpty)
-                  pairs.foldLeft(List[(TermNodeRangeSet, TermNode)]()) {
-                    case (pairs3, pair @ (rangeSet, newChild)) =>
-                      pairs2.foldLeft(pairs3) {
-                        case (pairs4, pair2 @ (rangeSet2, newChild2)) =>
-                          val rangeSet3 = rangeSet & rangeSet2
-                          if(!rangeSet3.isEmpty) {
-                            //println("dscn1 " + (pair, pair2))
-                            ((rangeSet3, newChild.withChild(newChild2))) :: pairs4 
-                          } else {
-                            //println("dscn2 " + (pair, pair2))
-                            (pair :: (rangeSet2, TermBranch(Vector(newChild2))) :: pairs4)
-                          }
+        childs.foldLeft(List[(Option[TermNodeRangeSet], TermNode)]()) {
+          (pairs, child) =>
+            val pairs2 = distributeSuperdisjunctionNode(child, rangeSets, depthRangeSets)
+            if(!pairs.isEmpty)
+              pairs.foldLeft(List[(Option[TermNodeRangeSet], TermNode)]()) {
+                case (pairs3, pair @ (optRangeSet, newChild)) =>
+                  pairs2.foldLeft(pairs3) {
+                    case (pairs4, pair2 @ (optRangeSet2, newChild2)) =>
+                      val optRangeSet3 = (optRangeSet |@| optRangeSet2) { _ & _ }
+                      if(optRangeSet3.map { rs => !rs.isEmpty }.getOrElse(true)) {
+                        //println("dscn1 " + (pair, pair2))
+                        ((optRangeSet3, newChild.withChild(newChild2))) :: pairs4 
+                      } else {
+                        //println("dscn2 " + (pair, pair2))
+                        (pair :: (optRangeSet2, TermBranch(Vector(newChild2))) :: pairs4)
                       }
                   }
-                else
-                  pairs2.map { case (rs, n) => (rs, TermBranch(Vector(n))) }
-            }
-          case (None, _) =>
-            none
+              }
+            else
+              pairs2.map { case (ors, n) => (ors, TermBranch(Vector(n))) }
         }
       case TermLeaf(_, _) =>
         distributeSuperdisjunctionNode(node, rangeSets, depthRangeSets)
-    }).map { _.map { case (rs, n) => (rs.superset(depthRangeSet), n) } }
+    }).map { case (ors, n) => (ors.map { _.superset(depthRangeSet) }, n) }
   }
 
-  private def distributeSuperdisjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet]): Option[List[(TermNodeRangeSet, TermNode)]] = {
+  private def distributeSuperdisjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet]): List[(Option[TermNodeRangeSet], TermNode)] = {
     val depthRangeSets2 = depthRangeSets.headOption.map { _ => depthRangeSets.tail }.getOrElse(Nil)
     node match {
       case TermBranch(childs) =>
-        childs.foldLeft(none[List[(TermNodeRangeSet, TermNode)]]) {
-          case (optPairs, child) =>
-            distributeSuperconjunctionNode(child, rangeSets, depthRangeSets).flatMap {
-              pairs2 =>
-                optPairs.map {
-                  pairs =>
-                    if(!pairs.isEmpty)
-                      pairs.foldLeft(List[(TermNodeRangeSet, TermNode)]()) {
-                        case (pairs3, pair @ (rangeSet, newChild)) =>
-                          pairs2.foldLeft(pairs3) {
-                            case (pairs4, pair2 @ (rangeSet2, newChild2)) =>
-                              val rangeSet3 = rangeSet | rangeSet2
-                              //println("dsdn1 " + (pair, pair2))
-                              ((rangeSet3, newChild.withChild(newChild2))) :: pairs4 
-                          }
-                      }
-                    else
-                      pairs2.map { case (rs, n) => (rs, TermBranch(Vector(n))) }
-                }.orElse(some(pairs2.map { case (rs, n) => (rs, TermBranch(Vector(n))) }))
-            }.orElse(optPairs)
+        childs.foldLeft(List[(Option[TermNodeRangeSet], TermNode)]()) {
+          (pairs, child) =>
+            val pairs2 = distributeSuperconjunctionNode(child, rangeSets, depthRangeSets)
+            if(!pairs.isEmpty)
+              pairs.foldLeft(List[(Option[TermNodeRangeSet], TermNode)]()) {
+                case (pairs3, pair @ (optRangeSet, newChild)) =>
+                  pairs2.foldLeft(pairs3) {
+                    case (pairs4, pair2 @ (optRangeSet2, newChild2)) =>
+                      val optRangeSet3 = (optRangeSet |@| optRangeSet2) { _ | _ }
+                      //println("dsdn1 " + (pair, pair2))
+                      ((optRangeSet3, newChild.withChild(newChild2))) :: pairs4 
+                  }
+              }
+            else
+              pairs2.map { case (ors, n) => (ors, TermBranch(Vector(n))) }
         }
       case TermLeaf(varName, _) =>
         rangeSets.get(varName).map {
-          rs => List((depthRangeSets2.headOption.map(rs.superset).getOrElse(rs), node))
-        }
+          rs => List((some(depthRangeSets2.headOption.map(rs.superset).getOrElse(rs)), node))
+        }.getOrElse(List((none, node)))
     }
   }
   
@@ -235,15 +226,15 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
   
   private def distributedTermFromSuperconjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet], varArgs: Map[String, Vector[MatchingTerm]]) = {
     //println("dtfscn " + node.toConjunctionStringForVarArgs(varArgs))
-    distributeSuperconjunctionNode(node, rangeSets, depthRangeSets).flatMap {
+    distributeSuperconjunctionNode(node, rangeSets, depthRangeSets) match {
       case List((_, newNode)) => some(matchingTermFromTermNodeAndVarArgs(newNode.withIndexes, varArgs))
-      case _               => none
+      case _                  => none
     }
   }
   
   private def distributedTermFromSuperdisjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet], varArgs: Map[String, Vector[MatchingTerm]]) = {
     //println("dtfsdn " + node.toConjunctionStringForVarArgs(varArgs))
-    distributeSuperdisjunctionNode(node, rangeSets, depthRangeSets).flatMap {
+    distributeSuperdisjunctionNode(node, rangeSets, depthRangeSets) match {
       case List((_, newNode)) => some(matchingTermFromTermNodeAndVarArgs(newNode.withIndexes, varArgs))
       case _                  => none
     }

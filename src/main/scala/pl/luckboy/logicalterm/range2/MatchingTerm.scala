@@ -33,10 +33,7 @@ case class MatchingTerm(
 sealed trait TermNode
 {
   def withChild(child: TermNode) =
-    this match {
-      case TermBranch(childs) => TermBranch(childs :+ child)
-      case TermLeaf(_, _)     => TermBranch(Vector(this, child))
-    }
+    this &| TermBranch(Vector(child)).normalizedTermNode
   
   def &| (node: TermNode) =
     (this, node) match {
@@ -58,6 +55,18 @@ sealed trait TermNode
     }
   
   def withIndexes = withIndexesFromIndex(0)._2
+  
+  def normalizedTermNode: TermNode =
+    this match {
+      case TermBranch(Vector(child)) =>
+        child match {
+          case TermBranch(Vector(child))  => child.normalizedTermNode
+          case TermBranch(_)              => TermBranch(Vector(child))
+          case TermLeaf(_, _)             => child
+        }
+      case _                         =>
+        this
+    }
   
   def toConjunctionStringForVarArgs(varArgs: Map[String, Vector[MatchingTerm]]): String =
     this match {

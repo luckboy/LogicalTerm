@@ -154,12 +154,12 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
           pairs6
       case TermLeaf(_, _) =>
         distributeSuperdisjunctionNode(node, rangeSets, depthRangeSets, false)
-    }).map { case (ors, n) => (ors.map { _.superset(depthRangeSet) }, n) }
+    }).map { case (ors, n) => (ors.map { _.superset(depthRangeSet) }, n.normalizedTermNode) }
   }
 
   private def distributeSuperdisjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet], isRoot: Boolean): List[(Option[TermNodeRangeSet], TermNode)] = {
     val depthRangeSets2 = depthRangeSets.headOption.map { _ => depthRangeSets.tail }.getOrElse(Nil)
-    node match {
+    (node match {
       case TermBranch(childs) =>
         childs.foldLeft(List[(Option[TermNodeRangeSet], TermNode)]()) {
           (pairs, child) =>
@@ -183,7 +183,7 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         rangeSets.get(varName).map {
           rs => List((some(depthRangeSets2.headOption.map(rs.superset).getOrElse(rs)), node))
         }.getOrElse(List((none, node)))
-    }
+    }).map { case (ors, n) => (ors, n.normalizedTermNode) }
   }
   
   private def checkSuperconjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet]): TermNodeRangeSet = {

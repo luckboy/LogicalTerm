@@ -38,7 +38,15 @@ sealed trait TermNode
       case TermLeaf(_, _)     => TermBranch(Vector(this, child))
     }
   
-  def withIndexesFromIndex(idx: Int): (Int, TermNode) =
+  def &| (node: TermNode) =
+    (this, node) match {
+      case (TermBranch(childs1), TermBranch(childs2)) => TermBranch(childs1 ++ childs2)
+      case (TermBranch(childs1), TermLeaf(_, _))      => TermBranch(childs1 :+ node)
+      case (TermLeaf(_, _), TermBranch(childs2))      => TermBranch(this +: childs2)
+      case (TermLeaf(_, _), TermLeaf(_, _))           => TermBranch(Vector(this, node))
+    }
+  
+  private def withIndexesFromIndex(idx: Int): (Int, TermNode) =
     this match {
       case TermBranch(childs) =>
         childs.foldLeft((idx, Vector[TermNode]())) {

@@ -407,4 +407,5 @@ add (d1 | d2) & (e1 | (e21 & e22)) & (f1 | f2)
   "A rangeSimpleExecutor" should behave like executor(rangeSimpleExecutor)
   
   "A range2SimpleExecutor" should behave like executor(range2SimpleExecutor)
+  it should behave like executorForDistributive(range2SimpleExecutor)
 }

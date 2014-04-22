@@ -76,14 +76,14 @@ object Main
     pw.flush()
   } 
   
-  def benchmark[T[_]](exec: Executor { type Table[U] = T[U] }, name: String, iters: Int, num: Int, execName: String) = {
+  def benchmark[T[_]](exec: Executor { type Table[U] = T[U] }, name: String, iters: Int, num: Int, execName: String, isFull: Boolean) = {
     val sdf = new SimpleDateFormat("dd-MM-yyyy_hh-mm-ss")
     val inDirName = "benchmarks"
     val inFileName = inDirName + "/" + name + ".lt"
     val outDirName = "results"
     val outDirName2 = outDirName + "/" + name
     val outDirName3 = outDirName2 + "/" + execName
-    val outFileName = outDirName3 + "/" + iters + "-" + num + "_" + sdf.format(new Date()) + ".txt"
+    val outFileName = outDirName3 + "/" + iters + "-" + num + "_" + sdf.format(new Date()) + (if(isFull) "-full" else "") + ".txt"
     try {
       val s = Source.fromFile(inFileName).mkString("")
       new File(outDirName).mkdir
@@ -92,17 +92,31 @@ object Main
       val pw = new PrintWriter(new FileWriter(outFileName))
       withClose(pw) {
         for(i <- 0 until num) {
-          Parser.parseString(s).flatMap {
-            exec.matchingInstructionsFromInstructions(_).map {
-              instrs =>
-                val table = exec.emptyTable
+          Parser.parseString(s).foreach {
+            instrs =>
+              if(!isFull) {
+                exec.matchingInstructionsFromInstructions(instrs).foreach {
+                  matchingInstrs =>
+                    val table = exec.emptyTable
+                    val startTime = System.currentTimeMillis
+                    for(j <- 0 until iters) {
+                       exec.executeMatchingInstructions(matchingInstrs)(table)
+                    }
+                    val endTime = System.currentTimeMillis
+                    benchmarkPrintln(pw, "Time(" + (i + 1) + "): " + ((endTime - startTime) / 1000.0) + "s")
+                }
+              } else {
                 val startTime = System.currentTimeMillis
                 for(j <- 0 until iters) {
-                   exec.executeMatchingInstructions(instrs)(table)
+                  exec.matchingInstructionsFromInstructions(instrs).foreach {
+                    matchingInstrs =>
+                      val table = exec.emptyTable
+                      exec.executeMatchingInstructions(matchingInstrs)(table)
+                  }
                 }
                 val endTime = System.currentTimeMillis
                 benchmarkPrintln(pw, "Time(" + (i + 1) + "): " + ((endTime - startTime) / 1000.0) + "s")
-            }
+             }
           }
         }
       }
@@ -121,14 +135,14 @@ object Main
         pair =>
           pair match {
             case ("benchmark", arg) =>
-              val args = arg.split("\\s+", 3)
+              val args = arg.split("\\s+", 4)
               if(args.size >= 3) {
                 val name = args(0)
                 (for {
                   iters <- args(1).parseInt
                   num <- args(2).parseInt
                 } yield {
-                  benchmark[T](exec, name, iters, num, execName)
+                  benchmark[T](exec, name, iters, num, execName, args.lift(3).map { _ === "full" }.getOrElse(false) )
                 }).getOrElse {
                   consoleReader.println("illegal number")
                 }
@@ -137,12 +151,12 @@ object Main
               (table, ExitFlag.NoExit)
             case ("help", _)        =>
               consoleReader.println("Commands:")
-              consoleReader.println(":benchmark <name> <iters> <num> measure performance")
-              consoleReader.println(":help                           display this text")
-              consoleReader.println(":load <file>                    load and execute the file")
-              consoleReader.println(":paste                          enter the paste mode (exit from this mode is Ctrl-D)")
-              consoleReader.println(":quit                           exit this program")
-              consoleReader.println(":term <term>                    display the term")
+              consoleReader.println(":benchmark <name> <iters> <num> [full]  measure performance")
+              consoleReader.println(":help                                   display this text")
+              consoleReader.println(":load <file>                            load and execute the file")
+              consoleReader.println(":paste                                  enter the paste mode (exit from this mode is Ctrl-D)")
+              consoleReader.println(":quit                                   exit this program")
+              consoleReader.println(":term <term>                            display the term")
               (table, ExitFlag.NoExit)
             case ("load", arg)      =>
               (if(!arg.isEmpty) {

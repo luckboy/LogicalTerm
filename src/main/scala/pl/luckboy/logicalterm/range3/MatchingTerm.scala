@@ -167,7 +167,7 @@ sealed trait TermNode
   def toConjunctionStringForVarArgs(varArgs: Map[String, Vector[MatchingTerm]]): String =
     this match {
       case TermBranch(childs, _) =>
-        childs.map { _.toDisjunctionStringForVarArgs(varArgs) }.mkString(" & ")
+        childs.map { _.toDisjunctionStringForVarArgs(varArgs) }.mkString(" & ") + " /*" + varCount + "*/"
       case TermLeaf(varName) =>
         varName + varArgs.get(varName).map { _.map { " " + _.toArgString }.mkString("") }.getOrElse("/* not found arguments */")
     }
@@ -175,7 +175,7 @@ sealed trait TermNode
   def toDisjunctionStringForVarArgs(varArgs: Map[String, Vector[MatchingTerm]]): String =
     this match {
       case TermBranch(childs, _) =>
-        "(" + childs.map { _.toConjunctionStringForVarArgs(varArgs) }.mkString(" | ") + ")"
+        "(" + childs.map { _.toConjunctionStringForVarArgs(varArgs) }.mkString(" | ") + " /*" + varCount + "*/)"
       case TermLeaf(varName) =>
         varName  + varArgs.get(varName).map { _.map { " " + _.toArgString }.mkString("") }.getOrElse("/* not found arguments */")
     }

@@ -222,7 +222,8 @@ object Main
       "simple" -> simpleExecutor,
       "hashSimple" -> hashSimpleExecutor,
       "rangeSimple" -> rangeSimpleExecutor,
-      "range2Simple" -> range2SimpleExecutor)
+      "range2Simple" -> range2SimpleExecutor,
+      "range3Simple" -> range3SimpleExecutor)
   
   def main(args: Array[String]): Unit = {
     val execName = args.headOption.getOrElse("simple")

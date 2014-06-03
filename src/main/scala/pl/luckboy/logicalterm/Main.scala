@@ -79,6 +79,7 @@ object Main
   
   def benchmarkPrintln(pw: PrintWriter, s: String) = {
     consoleReader.println(s)
+    consoleReader.flush()
     pw.println(s)
     pw.flush()
   } 

@@ -67,7 +67,7 @@ sealed trait TermNode
     this match {
       case TermBranch(Vector(child)) =>
         child match {
-          case TermBranch(Vector(child))  => child.normalizedTermNode
+          case TermBranch(Vector(child2)) => child2.normalizedTermNode
           case TermBranch(_)              => TermBranch(Vector(child))
           case TermLeaf(_, _)             => child
         }

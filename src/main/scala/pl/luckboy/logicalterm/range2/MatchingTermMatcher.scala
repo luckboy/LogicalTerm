@@ -171,7 +171,7 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
                 case (pairs3, pair @ (optRangeSet, newChild)) =>
                   pairs2.foldLeft(pairs3) {
                     case (pairs4, pair2 @ (optRangeSet2, newChild2)) =>
-                      val optRangeSet3 = (optRangeSet |@| optRangeSet2) { _ | _ }
+                      val optRangeSet3 = (optRangeSet |@| optRangeSet2) { _ | _ }.orElse(optRangeSet).orElse(optRangeSet2)
                       ((optRangeSet3, newChild.withChild(newChild2))) :: pairs4 
                   }
               }

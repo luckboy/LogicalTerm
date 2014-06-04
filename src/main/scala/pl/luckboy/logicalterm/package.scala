@@ -25,4 +25,6 @@ package object logicalterm
   val range2SimpleExecutor = Executor.executor[range2.MatchingTerm, simple.TableP[range2.MatchingTerm]#A]
   
   val range3SimpleExecutor = Executor.executor[range3.MatchingTerm, simple.TableP[range3.MatchingTerm]#A]
+
+  val range4SimpleExecutor = Executor.executor[range4.MatchingTerm, simple.TableP[range4.MatchingTerm]#A]
 }

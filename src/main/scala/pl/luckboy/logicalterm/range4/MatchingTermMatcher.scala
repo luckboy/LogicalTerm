@@ -52,37 +52,38 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
     val depthRangeSet = depthRangeSets.headOption.getOrElse(TermNodeRangeSet.empty)
     (node match {
       case TermBranch(childs, _) =>
-        val (_, pairs6) = childs.foldLeft((varIdx, List[(Option[TermNodeRangeSet], TermNode)]())) {
+        val (_, pairs7) = childs.foldLeft((varIdx, List[(Option[TermNodeRangeSet], TermNode)]())) {
           case ((newVarIdx, pairs), child) =>
             val pairs2 = checkOrDistributeSuperdisjunctionNode(child, rangeSets, depthRangeSets, false)(newVarIdx)
             if(!pairs.isEmpty) {
-              val (pairs5, pairIdxs3) = pairs.foldLeft((List[(Option[TermNodeRangeSet], TermNode)](), Set[Int]())) {
+              val (pairs6, pairIdxs4) = pairs.foldLeft((List[(Option[TermNodeRangeSet], TermNode)](), Set[Int]())) {
                 case ((pairs3, pairIdxs), pair @ (optRangeSet, newChild)) =>
-                  pairs2.zipWithIndex.foldLeft((pairs3, pairIdxs)) {
-                    case ((pairs4, pairIdxs2), (pair2 @ (optRangeSet2, newChild2), pairIdx)) =>
+                  val (pairs5, pairIdxs3, isIntersected2) = pairs2.zipWithIndex.foldLeft((pairs3, pairIdxs, false)) {
+                    case ((pairs4, pairIdxs2, isIntersected), (pair2 @ (optRangeSet2, newChild2), pairIdx)) =>
                       val optRangeSet3 = (optRangeSet |@| optRangeSet2) { _ & _ }
                       if(optRangeSet3.map { rs => !rs.isEmpty }.getOrElse(true))
-                        (((optRangeSet3, newChild.withChild(newChild2))) :: pairs4, pairIdxs2 + pairIdx)
+                        (((optRangeSet3, newChild.withChild(newChild2))) :: pairs4, pairIdxs2 + pairIdx, true)
                       else
-                        ((pair :: pairs4), pairIdxs2)
+                        (pairs4, pairIdxs2, isIntersected)
                   }
+                  (if(isIntersected2) pairs5 else (pair :: pairs5), pairIdxs3)
               }
-              (newVarIdx + child.varCount, pairs2.zipWithIndex.flatMap { case ((ors, n), pi) => if(!pairIdxs3.contains(pi)) List((ors, TermBranch(Vector(n), n.varCount))) else Nil } ++ pairs5)
+              (newVarIdx + child.varCount, pairs2.zipWithIndex.flatMap { case ((ors, n), pi) => if(!pairIdxs4.contains(pi)) List((ors, TermBranch(Vector(n), n.varCount))) else Nil } ++ pairs6)
             } else
               (newVarIdx + child.varCount, pairs2.map { case (ors, n) => (ors, TermBranch(Vector(n), n.varCount)) })
         }
         if(isRoot)
-          pairs6.headOption.map {
+          pairs7.headOption.map {
             pair =>
-              if(pairs6.size > 1)
-                List(pairs6.foldLeft((some(TermNodeRangeSet.empty), TermBranch(Vector(), 0))) {
+              if(pairs7.size > 1)
+                List(pairs7.foldLeft((some(TermNodeRangeSet.empty), TermBranch(Vector(), 0))) {
                   case ((_, n), (_, n2)) => (none[TermNodeRangeSet], n &| n2)
                 })
               else
                 List(pair)
           }.getOrElse(List((some(TermNodeRangeSet.empty), TermBranch(Vector(), 0))))
         else
-          pairs6
+          pairs7
       case TermLeaf(_) =>
         checkOrDistributeSuperdisjunctionNode(node, rangeSets, depthRangeSets, false)(varIdx)
     }).map { case (ors, n) => (ors.map { _.superset(depthRangeSet) }, n.normalizedTermNode) }

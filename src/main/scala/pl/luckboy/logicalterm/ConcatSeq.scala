@@ -23,6 +23,12 @@ sealed trait ConcatSeq[T]
       case ListConcatSeq(seqs)  => seqs.foldLeft(z) { (x, seq) => seq.foldLeft(x)(f) }
     }
   
+  def map[U](f: T => U): ConcatSeq[U] =
+    this match {
+      case SingleConcatSeq(x)  => SingleConcatSeq(f(x))
+      case ListConcatSeq(seqs) => ListConcatSeq(seqs.map { _.map(f) })
+    }
+  
   def toSeq: Seq[T] = toList
 
   def toList = foldLeft(List[T]()) { (xs, x) => x :: xs }.reverse

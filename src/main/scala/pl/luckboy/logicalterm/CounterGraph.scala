@@ -14,7 +14,7 @@ import scalaz.Scalaz._
 case class CounterGraph[T](vertices: Map[T, CounterGraphVertice[T]])
 {
   @tailrec
-  final def decreaseCounters(q: Queue[T]): Option[CounterGraph[T]] =
+  private def decreaseCountersForQueue(q: Queue[T]): Option[CounterGraph[T]] =
     if(!q.isEmpty) {
       val (vLoc, q2) = q.dequeue
       vertices.get(vLoc) match {
@@ -32,7 +32,7 @@ case class CounterGraph[T](vertices: Map[T, CounterGraphVertice[T]])
               none
           }
           optPair match {
-            case Some((g2, q4)) => g2.decreaseCounters(q4)
+            case Some((g2, q4)) => g2.decreaseCountersForQueue(q4)
             case None           => none
           }
         case None    =>
@@ -40,8 +40,30 @@ case class CounterGraph[T](vertices: Map[T, CounterGraphVertice[T]])
       }
     } else
       some(this)
+      
+  def decreaseCounters(implicit equal: Equal[T]) = {
+    val q = Queue[T]() ++ vertices.flatMap { case (vLoc, v) => if(v.count === 0) Set(vLoc)  else Set[T]() }
+    decreaseCountersForQueue(q)
+  }
+      
+  def withEdge(vLoc: T, uLoc: T)(implicit equal: Equal[T]) = 
+    if(vLoc =/= uLoc) {
+      val v = vertices.get(vLoc).getOrElse(CounterGraphVertice(Set(), 0))
+      CounterGraph(vertices = vertices + (vLoc -> v.copy(neighborLocs = v.neighborLocs + uLoc)))
+    } else
+      this
+  
+  def withTwoEdges(vLoc: T, uLoc: T)(implicit equal: Equal[T]) = withEdge(vLoc, uLoc).withEdge(uLoc, vLoc)
+  
+  def withCount(vLoc: T, count: Int) = 
+    CounterGraph[T](vertices = vertices + (vLoc -> vertices.get(vLoc).getOrElse(CounterGraphVertice(Set(), 0)).copy(count = count)))
+}
+
+object CounterGraph
+{
+  def empty[T] = CounterGraph(Map[T, CounterGraphVertice[T]]())
 }
 
 case class CounterGraphVertice[T](
-    neighborLocs: List[T],
+    neighborLocs: Set[T],
     count: Int)

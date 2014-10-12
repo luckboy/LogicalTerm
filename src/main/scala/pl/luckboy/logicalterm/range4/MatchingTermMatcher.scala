@@ -153,14 +153,14 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
   private def generateCountGraphForConjunction(otherVarIdxs: Map[Int, Set[Int]], node: TermNode, isSuperterm: Boolean)(varIdx: Int)(tuple: (CounterGraph[CounterGraphLocation], Set[(CounterGraphLocation, CounterGraphLocation)], Map[Int, String])): (CounterGraph[CounterGraphLocation], Set[(CounterGraphLocation, CounterGraphLocation)], Map[Int, String]) =
 	node match {
 	  case TermBranch(childs, _) =>
-	    val uLoc = CounterGraphLocation(TermNodeRange(varIdx, varIdx + node.varCount), isSuperterm)
+	    val uLoc = CounterGraphLocation(TermNodeRange(varIdx, varIdx + node.varCount - 1), isSuperterm)
 	    val (g2, es2, vns2) = childs.foldLeft((varIdx, tuple)) {
 	      case ((newVarIdx, newTuple), child) =>
-	        val (newG2, newEs2, newVns2) = generateCountGraphForDisjunction(otherVarIdxs, node, isSuperterm)(newVarIdx)(newTuple)
-	        val vLoc = CounterGraphLocation(TermNodeRange(newVarIdx, newVarIdx + child.varCount), isSuperterm)
-	        (newVarIdx + child.varCount, (newG2.withTwoEdges(vLoc, uLoc), newEs2, newVns2))
+	        val (newG2, newEs2, newVns2) = generateCountGraphForDisjunction(otherVarIdxs, child, isSuperterm)(newVarIdx)(newTuple)
+	        val vLoc = CounterGraphLocation(TermNodeRange(newVarIdx, newVarIdx + child.varCount - 1), isSuperterm)
+	        (newVarIdx + child.varCount, (newG2.withEdge(vLoc, uLoc), newEs2, newVns2))
 	    }._2
-	    (g2.withCount(uLoc, 1), es2, vns2)
+	    (if(childs.size > 1) g2.withCount(uLoc, 1) else g2, es2, vns2)
 	  case TermLeaf(varName)     =>
 	    generateCountGraphForDisjunction(otherVarIdxs, node, isSuperterm)(varIdx)(tuple)
 	}
@@ -168,14 +168,14 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
   private def generateCountGraphForDisjunction(otherVarIdxs: Map[Int, Set[Int]], node: TermNode, isSuperterm: Boolean)(varIdx: Int)(tuple: (CounterGraph[CounterGraphLocation], Set[(CounterGraphLocation, CounterGraphLocation)], Map[Int, String])): (CounterGraph[CounterGraphLocation], Set[(CounterGraphLocation, CounterGraphLocation)], Map[Int, String]) =
 	node match {
 	  case TermBranch(childs, _) =>
-	    val uLoc = CounterGraphLocation(TermNodeRange(varIdx, varIdx + node.varCount), isSuperterm)
+	    val uLoc = CounterGraphLocation(TermNodeRange(varIdx, varIdx + node.varCount - 1), isSuperterm)
 	    val (g2, es2, vns2) = childs.foldLeft((varIdx, tuple)) {
 	      case ((newVarIdx, newTuple), child) =>
-	        val (newG2, newEs2, newVns2) = generateCountGraphForDisjunction(otherVarIdxs, node, isSuperterm)(newVarIdx)(newTuple)
-	        val vLoc = CounterGraphLocation(TermNodeRange(newVarIdx, newVarIdx + child.varCount), isSuperterm)
-	        (newVarIdx + child.varCount, (newG2.withTwoEdges(vLoc, uLoc), newEs2, newVns2))
+	        val (newG2, newEs2, newVns2) = generateCountGraphForConjunction(otherVarIdxs, child, isSuperterm)(newVarIdx)(newTuple)
+	        val vLoc = CounterGraphLocation(TermNodeRange(newVarIdx, newVarIdx + child.varCount - 1), isSuperterm)
+	        (newVarIdx + child.varCount, (newG2.withEdge(vLoc, uLoc), newEs2, newVns2))
 	    }._2
-	    (g2.withCount(uLoc, childs.size), es2, vns2)
+	    (if(childs.size > 1) g2.withCount(uLoc, childs.size) else g2, es2, vns2)
 	  case TermLeaf(varName)     =>
 	    val (g, es, vns) = tuple
 	    val vLoc = CounterGraphLocation(TermNodeRange(varIdx, varIdx), isSuperterm)
@@ -192,13 +192,11 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
     val swappedEdges2 = edges2.map { _.swap }
     val intersectedEdges = edges1 & swappedEdges2
     val otherEdges = (edges1 | swappedEdges2) &~ intersectedEdges
+    val otherVLocs = otherEdges.flatMap { p => Set(p._1, p._2) } -- intersectedEdges.flatMap { p => Set(p._1, p._2) }
     val graph2 = intersectedEdges.foldLeft(graph) {
       (newGraph, edge) => newGraph.withTwoEdges(edge._1, edge._2)
     }
-    otherEdges.foldLeft(graph2) {
-      case(newGraph, edge) =>
-        newGraph.withCount(edge._1, 0).withCount(edge._2, 0)
-    }
+    otherVLocs.foldLeft(graph2) { _.withCount(_, 0) }
   }
   
   private def fullyCheckOrDistributeSuperconjunctionNode(node: TermNode, rangeSets: Map[String, TermNodeRangeSet], depthRangeSets: List[TermNodeRangeSet], varArgs: Map[String, Vector[MatchingTerm]]) =
@@ -270,8 +268,8 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
           val graph3 = counterGraphWithTwoVarEdgeSets(graph2, conjEdges, disjEdges)
           graph3.decreaseCounters.flatMap {
             graph4 =>
-              val vLoc = CounterGraphLocation(TermNodeRange(0, distributedTerm1.conjNode.varCount), true)
-              val uLoc = CounterGraphLocation(TermNodeRange(0, distributedTerm2.conjNode.varCount), false)
+              val vLoc = CounterGraphLocation(TermNodeRange(0, distributedTerm1.conjNode.varCount - 1), true)
+              val uLoc = CounterGraphLocation(TermNodeRange(0, distributedTerm2.conjNode.varCount - 1), false)
               (for(v <- graph4.vertices.get(vLoc); u <- graph4.vertices.get(uLoc)) yield (v, u)).flatMap {
                 case (v, u) =>
                   if(v.count > 0 && u.count > 0) {

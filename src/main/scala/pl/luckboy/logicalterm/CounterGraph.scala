@@ -57,6 +57,13 @@ case class CounterGraph[T](vertices: Map[T, CounterGraphVertice[T]])
   
   def withCount(vLoc: T, count: Int) = 
     CounterGraph[T](vertices = vertices + (vLoc -> vertices.get(vLoc).getOrElse(CounterGraphVertice(Set(), 0)).copy(count = count)))
+
+  override def toString =
+    "{\n" + 
+    vertices.map {
+      case (vLoc, v) => "  " + vLoc + "->{\n    neighbors={" + v.neighborLocs.mkString(",") + "},\n    coubt=" + v.count + "\n  }"
+    }.mkString(",\n") +
+    "\n}"
 }
 
 object CounterGraph
@@ -67,3 +74,6 @@ object CounterGraph
 case class CounterGraphVertice[T](
     neighborLocs: Set[T],
     count: Int)
+{
+  override def toString = "{\nneighbors={" + neighborLocs.mkString(",") + "},\ncoubt=" + count + "\n}"
+}

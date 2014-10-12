@@ -349,6 +349,10 @@ add a1 (b & c) d (b | d)
     it should "match the terms for the fixed range bug" in {
       e1("(((a1 | a2) & b) | (c & d)) & e = ((a1 | a2) & b & e) | (c & d & e)") should be ===(MatchedTermResult.success)
     }
+    
+    it should "not match the terms for the fixed range algorithm bug ((... | n) & a & (a | n))" in {
+      e1("(y | u & w | n) & a & (a | n) >= (u | n) & (v | n) & a & (a | n)") should be ===(MismatchedTermResult.success)
+    }
   }
   
   def executorForDistributive(exec: Executor)

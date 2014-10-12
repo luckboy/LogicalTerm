@@ -292,6 +292,9 @@ object TermNodeRange
 }
 
 case class CounterGraphLocation(range: TermNodeRange, isSuperterm: Boolean)
+{
+  override def toString = "(" + range + "," + isSuperterm + ")"
+}
 
 case class TermNodeRangeValue(
     otherVarIdxs: ConcatSeq[Int],

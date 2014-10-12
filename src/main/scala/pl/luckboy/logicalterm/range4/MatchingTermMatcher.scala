@@ -158,7 +158,7 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
 	      case ((newVarIdx, newTuple), child) =>
 	        val (newG2, newEs2, newVns2) = generateCountGraphForDisjunction(otherVarIdxs, child, isSuperterm)(newVarIdx)(newTuple)
 	        val vLoc = CounterGraphLocation(TermNodeRange(newVarIdx, newVarIdx + child.varCount - 1), isSuperterm)
-	        (newVarIdx + child.varCount, (newG2.withEdge(vLoc, uLoc), newEs2, newVns2))
+	        (newVarIdx + child.varCount, (newG2.withTwoEdges(vLoc, uLoc), newEs2, newVns2))
 	    }._2
 	    (if(childs.size > 1) g2.withCount(uLoc, 1) else g2, es2, vns2)
 	  case TermLeaf(varName)     =>
@@ -173,7 +173,7 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
 	      case ((newVarIdx, newTuple), child) =>
 	        val (newG2, newEs2, newVns2) = generateCountGraphForConjunction(otherVarIdxs, child, isSuperterm)(newVarIdx)(newTuple)
 	        val vLoc = CounterGraphLocation(TermNodeRange(newVarIdx, newVarIdx + child.varCount - 1), isSuperterm)
-	        (newVarIdx + child.varCount, (newG2.withEdge(vLoc, uLoc), newEs2, newVns2))
+	        (newVarIdx + child.varCount, (newG2.withTwoEdges(vLoc, uLoc), newEs2, newVns2))
 	    }._2
 	    (if(childs.size > 1) g2.withCount(uLoc, childs.size) else g2, es2, vns2)
 	  case TermLeaf(varName)     =>

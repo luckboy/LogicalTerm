@@ -266,8 +266,7 @@ case class TermNodeRangeSet(ranges: SortedMap[TermNodeRange, TermNodeRangeValue]
   def withValuesFromVarIndex(idx: Int) =
     TermNodeRangeSet(ranges.mapValues { v => v.copy(varIdxPairs = v.myVarIdxs.map { idx -> _ }) })
     
-  def value = 
-    ranges.values.foldLeft(TermNodeRangeValue.empty) { (v, v2) => v2 ++ v }
+  def value = ranges.values.foldLeft(TermNodeRangeValue.empty) { (v, v2) => v2 ++ v }
   
   override def toString = "{" + ranges.map { case (r, p) => r + "->" + p }.mkString(",") + "}"
 }

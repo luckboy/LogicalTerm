@@ -59,16 +59,16 @@ object MatchingTermInfo
         val conjRangeSets2 = tuple3._1
         val conjRangeSets3 = conjRangeSets2 ++ varIdxs.map { 
           case (name, idxs) => 
-            val pair = VarIndexSeqPair(ConcatSeq.fromIterable(idxs), ConcatSeq())
+            val pair = TermNodeRangeValue(ConcatSeq.fromIterable(idxs), ConcatSeq())
             name -> (conjRangeSets2.getOrElse(name, TermNodeRangeSet.empty) | optRange.map { r => TermNodeRangeSet(SortedMap(r -> pair)) }.getOrElse(TermNodeRangeSet.empty))
         }
-        val conjDepthRangeSet2 = conjDepthRangeSet | optRange.map { r => TermNodeRangeSet(SortedMap(r -> VarIndexSeqPair.empty)) }.getOrElse(TermNodeRangeSet.empty)
+        val conjDepthRangeSet2 = conjDepthRangeSet | optRange.map { r => TermNodeRangeSet(SortedMap(r -> TermNodeRangeValue.empty)) }.getOrElse(TermNodeRangeSet.empty)
         (tuple3.copy(_1 = conjRangeSets3, _3 = conjDepthRangeSet2 :: tuple3._3), Map(), optRange)
       case TermLeaf(varName) =>
         val range = TermNodeRange(varIdx, varIdx)
-        val pair = VarIndexSeqPair(ConcatSeq(varIdx), ConcatSeq())
+        val pair = TermNodeRangeValue(ConcatSeq(varIdx), ConcatSeq())
         val conjRangeSets2 = conjRangeSets + (varName -> (conjRangeSets.getOrElse(varName, TermNodeRangeSet.empty) | TermNodeRangeSet(SortedMap(range -> pair))))
-        val conjDepthRangeSet2 = conjDepthRangeSet | TermNodeRangeSet(SortedMap(range -> VarIndexSeqPair.empty))
+        val conjDepthRangeSet2 = conjDepthRangeSet | TermNodeRangeSet(SortedMap(range -> TermNodeRangeValue.empty))
         (tuple.copy(_1 = conjRangeSets2, _3 = conjDepthRangeSet2 :: nextConjDepthRangeSets), Map(varName -> Set(varIdx)), some(TermNodeRange(varIdx, varIdx)))
     }
   }
@@ -89,16 +89,16 @@ object MatchingTermInfo
         val disjRangeSets2 = tuple3._2
         val disjRangeSets3 = disjRangeSets2 ++ varIdxs.map { 
           case (name, idxs) => 
-            val pair = VarIndexSeqPair(ConcatSeq.fromIterable(idxs), ConcatSeq())
+            val pair = TermNodeRangeValue(ConcatSeq.fromIterable(idxs), ConcatSeq())
             name -> (disjRangeSets2.getOrElse(name, TermNodeRangeSet.empty) | optRange.map { r => TermNodeRangeSet(SortedMap(r -> pair)) }.getOrElse(TermNodeRangeSet.empty))
         }
-        val disjDepthRangeSet2 = disjDepthRangeSet | optRange.map { r => TermNodeRangeSet(SortedMap(r -> VarIndexSeqPair.empty)) }.getOrElse(TermNodeRangeSet.empty)
+        val disjDepthRangeSet2 = disjDepthRangeSet | optRange.map { r => TermNodeRangeSet(SortedMap(r -> TermNodeRangeValue.empty)) }.getOrElse(TermNodeRangeSet.empty)
         (tuple3.copy(_2 = disjRangeSets3, _4 = disjDepthRangeSet2 :: tuple3._4), Map(), optRange)
       case TermLeaf(varName) =>
         val range = TermNodeRange(varIdx, varIdx)
-        val pair = VarIndexSeqPair(ConcatSeq(varIdx), ConcatSeq())
+        val pair = TermNodeRangeValue(ConcatSeq(varIdx), ConcatSeq())
         val disjRangeSets2 = disjRangeSets + (varName -> (disjRangeSets.getOrElse(varName, TermNodeRangeSet.empty) | TermNodeRangeSet(SortedMap(range -> pair))))
-        val disjDepthRangeSet2 = disjDepthRangeSet | TermNodeRangeSet(SortedMap(range -> VarIndexSeqPair.empty))
+        val disjDepthRangeSet2 = disjDepthRangeSet | TermNodeRangeSet(SortedMap(range -> TermNodeRangeValue.empty))
         (tuple.copy(_2 = disjRangeSets2, _4 = disjDepthRangeSet2 :: nextDisjDepthRangeSets), Map(varName -> Set(varIdx)), some(TermNodeRange(varIdx, varIdx)))
     }
   }
@@ -108,7 +108,7 @@ object MatchingTermInfo
     val (conjRangeSets, disjRangeSets, conjDepthRangeSets, disjDepthRangeSets) = tuple
     val disjRangeSets2 = tuple._2 ++ varIdxs.map { 
       case (name, idxs) => 
-        val pair = VarIndexSeqPair(ConcatSeq.fromIterable(idxs), ConcatSeq())
+        val pair = TermNodeRangeValue(ConcatSeq.fromIterable(idxs), ConcatSeq())
         name -> (disjRangeSets.getOrElse(name, TermNodeRangeSet.empty) | optRange.map { r => TermNodeRangeSet(SortedMap(r -> pair)) }.getOrElse(TermNodeRangeSet.empty))
     }
     tuple.copy(_2 = disjRangeSets2)
@@ -188,10 +188,10 @@ case class TermLeaf(varName: String) extends TermNode
   override def varCount = 1
 }
 
-case class TermNodeRangeSet(ranges: SortedMap[TermNodeRange, VarIndexSeqPair])
+case class TermNodeRangeSet(ranges: SortedMap[TermNodeRange, TermNodeRangeValue])
 { 
   private def intersect(rangeSet: TermNodeRangeSet) = {
-    val newRanges3 = ranges.foldLeft(SortedMap[TermNodeRange, VarIndexSeqPair]()) {
+    val newRanges3 = ranges.foldLeft(SortedMap[TermNodeRange, TermNodeRangeValue]()) {
       case (newRanges, (range, pair)) =>
         val from = TermNodeRange(range.minIdx, range.minIdx)
         val to = TermNodeRange(range.maxIdx, range.maxIdx)
@@ -212,7 +212,7 @@ case class TermNodeRangeSet(ranges: SortedMap[TermNodeRange, VarIndexSeqPair])
     if(ranges.size < rangeSet.ranges.size) intersect(rangeSet) else rangeSet.intersect(this)
   
   private def union(rangeSet: TermNodeRangeSet) = {
-    val newRanges2 = ranges.foldLeft(SortedMap[TermNodeRange, VarIndexSeqPair]()) {
+    val newRanges2 = ranges.foldLeft(SortedMap[TermNodeRange, TermNodeRangeValue]()) {
       case (newRanges, (range, pair)) =>
         val from = TermNodeRange(range.minIdx, range.minIdx)
         val to = TermNodeRange(range.maxIdx, range.maxIdx)
@@ -242,7 +242,7 @@ case class TermNodeRangeSet(ranges: SortedMap[TermNodeRange, VarIndexSeqPair])
   def isEmpty = ranges.isEmpty
     
   def superset(sepRangeSet: TermNodeRangeSet) = {
-    val newRanges2 = ranges.foldLeft(SortedMap[TermNodeRange, VarIndexSeqPair]()) {
+    val newRanges2 = ranges.foldLeft(SortedMap[TermNodeRange, TermNodeRangeValue]()) {
       case (newRanges, (range, pair)) =>
         val from = TermNodeRange(range.minIdx, range.minIdx)
         val to = TermNodeRange(range.maxIdx, range.maxIdx)
@@ -263,11 +263,10 @@ case class TermNodeRangeSet(ranges: SortedMap[TermNodeRange, VarIndexSeqPair])
     TermNodeRangeSet(newRanges4)
   }
     
-  def swapPairsWithMyVarIndex(idx: Int) =
-    TermNodeRangeSet(ranges.mapValues { case VarIndexSeqPair(oldMyVarIdxs, _) => VarIndexSeqPair(ConcatSeq(idx), oldMyVarIdxs) })
+  def withValuesFromVarIndex(idx: Int) =
+    TermNodeRangeSet(ranges.mapValues { v => v.copy(varIdxPairs = v.myVarIdxs.map { idx -> _ }) })
     
-  def varIndexSeqPair = 
-    ranges.values.foldLeft(VarIndexSeqPair.empty) { (v, v2) => v2 ++ v }
+  def value = ranges.values.foldLeft(TermNodeRangeValue.empty) { (v, v2) => v2 ++ v }  
   
   override def toString = "{" + ranges.map { case (r, p) => r + "->" + p }.mkString(",") + "}"
 }
@@ -276,7 +275,7 @@ object TermNodeRangeSet
 {
   val empty = TermNodeRangeSet(SortedMap())
   
-  val full = TermNodeRangeSet(SortedMap(TermNodeRange.full -> VarIndexSeqPair.empty))
+  val full = TermNodeRangeSet(SortedMap(TermNodeRange.full -> TermNodeRangeValue.empty))
 }
 
 case class TermNodeRange(minIdx: Int, maxIdx: Int)
@@ -291,14 +290,24 @@ object TermNodeRange
   val full = TermNodeRange(0, Integer.MAX_VALUE)
 }
 
-case class VarIndexSeqPair(myVarIdxs: ConcatSeq[Int], otherVarIdxs: ConcatSeq[Int])
+case class CounterGraphLocation(range: TermNodeRange, isSuperterm: Boolean)
 {
-  def ++ (pair: VarIndexSeqPair) = VarIndexSeqPair(myVarIdxs ++ pair.myVarIdxs, otherVarIdxs ++ pair.otherVarIdxs)
-
-  override def toString = "({" + myVarIdxs.toSet.mkString(",") + "},{" + otherVarIdxs.toSet.mkString(",") + "})"
+  override def toString = "(" + range + "," + isSuperterm + ")"
 }
 
-object VarIndexSeqPair
+case class TermNodeRangeValue(
+    otherVarIdxs: ConcatSeq[Int],
+    varIdxPairs: ConcatSeq[(Int, Int)])
 {
-  val empty = VarIndexSeqPair(ConcatSeq.empty, ConcatSeq.empty)
+  def myVarIdxs = otherVarIdxs
+  
+  def ++ (pair: TermNodeRangeValue) = TermNodeRangeValue(otherVarIdxs ++ pair.otherVarIdxs, varIdxPairs ++ pair.varIdxPairs)
+
+  override def toString = "{" + otherVarIdxs.toSet.mkString(",") + ",{" + varIdxPairs.toSet.mkString(",") + "})"
+}
+
+
+object TermNodeRangeValue
+{
+  val empty = TermNodeRangeValue(ConcatSeq.empty, ConcatSeq.empty)
 }

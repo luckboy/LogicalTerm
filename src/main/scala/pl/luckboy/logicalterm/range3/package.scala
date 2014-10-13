@@ -15,4 +15,8 @@ package object range3
   }
   
   implicit val matchingTermMatcher: Matcher[MatchingTerm] = new MatchingTermMatcher
+  
+  implicit val counterGraphLocationEqual: scalaz.Equal[CounterGraphLocation] = new scalaz.Equal[CounterGraphLocation] {
+    override def equal(a1: CounterGraphLocation, a2: CounterGraphLocation) = a1 == a2
+  }
 }

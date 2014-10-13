@@ -48,15 +48,15 @@ case class CounterGraph[T](vertices: Map[T, CounterGraphVertice[T]])
       
   def withEdge(vLoc: T, uLoc: T)(implicit equal: Equal[T]) = 
     if(vLoc =/= uLoc) {
-      val v = vertices.get(vLoc).getOrElse(CounterGraphVertice(Set(), 0))
-      CounterGraph(vertices = vertices + (vLoc -> v.copy(neighborLocs = v.neighborLocs + uLoc)))
+      val v = vertices.get(vLoc).getOrElse(CounterGraphVertice(Vector(), 0))
+      CounterGraph(vertices = vertices + (vLoc -> v.copy(neighborLocs = v.neighborLocs :+ uLoc)))
     } else
       this
   
   def withTwoEdges(vLoc: T, uLoc: T)(implicit equal: Equal[T]) = withEdge(vLoc, uLoc).withEdge(uLoc, vLoc)
   
   def withCount(vLoc: T, count: Int) = 
-    CounterGraph[T](vertices = vertices + (vLoc -> vertices.get(vLoc).getOrElse(CounterGraphVertice(Set(), 0)).copy(count = count)))
+    CounterGraph[T](vertices = vertices + (vLoc -> vertices.get(vLoc).getOrElse(CounterGraphVertice(Vector(), 0)).copy(count = count)))
 
   override def toString =
     "{\n" + 
@@ -72,7 +72,7 @@ object CounterGraph
 }
 
 case class CounterGraphVertice[T](
-    neighborLocs: Set[T],
+    neighborLocs: Vector[T],
     count: Int)
 {
   override def toString = "{\nneighbors={" + neighborLocs.mkString(",") + "},\ncoubt=" + count + "\n}"

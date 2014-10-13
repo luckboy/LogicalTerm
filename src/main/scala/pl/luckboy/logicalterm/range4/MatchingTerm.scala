@@ -293,6 +293,8 @@ object TermNodeRange
 case class CounterGraphLocation(range: TermNodeRange, isSuperterm: Boolean)
 {
   override def toString = "(" + range + "," + isSuperterm + ")"
+  
+  override lazy val hashCode = range.hashCode ^ isSuperterm.hashCode
 }
 
 case class TermNodeRangeValue(

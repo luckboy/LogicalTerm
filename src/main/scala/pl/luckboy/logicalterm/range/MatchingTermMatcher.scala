@@ -48,16 +48,16 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         val conjRangeSets2 = tuple3._1
         val conjRangeSets3 = conjRangeSets2 ++ varIdxs.map { 
           case (name, idxs) => 
-            val pair = VarIndexSeqPair(ConcatSeq.fromIterable(idxs), ConcatSeq())
+            val pair = TermNodeRangeValue(ConcatSeq.fromIterable(idxs), ConcatSeq())
             name -> (conjRangeSets2.getOrElse(name, TermNodeRangeSet.empty) | optRange.map { r => TermNodeRangeSet(SortedMap(r -> pair)) }.getOrElse(TermNodeRangeSet.empty))
         }
-        val conjDepthRangeSet2 = conjDepthRangeSet | optRange.map { r => TermNodeRangeSet(SortedMap(r -> VarIndexSeqPair.empty)) }.getOrElse(TermNodeRangeSet.empty)
+        val conjDepthRangeSet2 = conjDepthRangeSet | optRange.map { r => TermNodeRangeSet(SortedMap(r -> TermNodeRangeValue.empty)) }.getOrElse(TermNodeRangeSet.empty)
         (tuple3.copy(_1 = conjRangeSets3, _3 = conjDepthRangeSet2 :: tuple3._3), Map(), optRange)
       case TermLeaf(varName, varIdx) =>
         val range = TermNodeRange(varIdx, varIdx)
-        val pair = VarIndexSeqPair(ConcatSeq(varIdx), ConcatSeq())
+        val pair = TermNodeRangeValue(ConcatSeq(varIdx), ConcatSeq())
         val conjRangeSets2 = conjRangeSets + (varName -> (conjRangeSets.getOrElse(varName, TermNodeRangeSet.empty) | TermNodeRangeSet(SortedMap(range -> pair))))
-        val conjDepthRangeSet2 = conjDepthRangeSet | TermNodeRangeSet(SortedMap(range -> VarIndexSeqPair.empty))
+        val conjDepthRangeSet2 = conjDepthRangeSet | TermNodeRangeSet(SortedMap(range -> TermNodeRangeValue.empty))
         (tuple.copy(_1 = conjRangeSets2, _3 = conjDepthRangeSet2 :: nextConjDepthRangeSets), Map(varName -> Set(varIdx)), some(TermNodeRange(varIdx, varIdx)))
     }
   }
@@ -78,16 +78,16 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
         val disjRangeSets2 = tuple3._2
         val disjRangeSets3 = disjRangeSets2 ++ varIdxs.map { 
           case (name, idxs) => 
-            val pair = VarIndexSeqPair(ConcatSeq.fromIterable(idxs), ConcatSeq())
+            val pair = TermNodeRangeValue(ConcatSeq.fromIterable(idxs), ConcatSeq())
             name -> (disjRangeSets2.getOrElse(name, TermNodeRangeSet.empty) | optRange.map { r => TermNodeRangeSet(SortedMap(r -> pair)) }.getOrElse(TermNodeRangeSet.empty))
         }
-        val disjDepthRangeSet2 = disjDepthRangeSet | optRange.map { r => TermNodeRangeSet(SortedMap(r -> VarIndexSeqPair.empty)) }.getOrElse(TermNodeRangeSet.empty)
+        val disjDepthRangeSet2 = disjDepthRangeSet | optRange.map { r => TermNodeRangeSet(SortedMap(r -> TermNodeRangeValue.empty)) }.getOrElse(TermNodeRangeSet.empty)
         (tuple3.copy(_2 = disjRangeSets3, _4 = disjDepthRangeSet2 :: tuple3._4), Map(), optRange)
       case TermLeaf(varName, varIdx) =>
         val range = TermNodeRange(varIdx, varIdx)
-        val pair = VarIndexSeqPair(ConcatSeq(varIdx), ConcatSeq())
+        val pair = TermNodeRangeValue(ConcatSeq(varIdx), ConcatSeq())
         val disjRangeSets2 = disjRangeSets + (varName -> (disjRangeSets.getOrElse(varName, TermNodeRangeSet.empty) | TermNodeRangeSet(SortedMap(range -> pair))))
-        val disjDepthRangeSet2 = disjDepthRangeSet | TermNodeRangeSet(SortedMap(range -> VarIndexSeqPair.empty))
+        val disjDepthRangeSet2 = disjDepthRangeSet | TermNodeRangeSet(SortedMap(range -> TermNodeRangeValue.empty))
         (tuple.copy(_2 = disjRangeSets2, _4 = disjDepthRangeSet2 :: nextDisjDepthRangeSets), Map(varName -> Set(varIdx)), some(TermNodeRange(varIdx, varIdx)))
     }
   }
@@ -97,7 +97,7 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
     val (conjRangeSets, disjRangeSets, conjDepthRangeSets, disjDepthRangeSets) = tuple
     val disjRangeSets2 = tuple._2 ++ varIdxs.map { 
       case (name, idxs) => 
-        val pair = VarIndexSeqPair(ConcatSeq.fromIterable(idxs), ConcatSeq())
+        val pair = TermNodeRangeValue(ConcatSeq.fromIterable(idxs), ConcatSeq())
         name -> (disjRangeSets.getOrElse(name, TermNodeRangeSet.empty) | optRange.map { r => TermNodeRangeSet(SortedMap(r -> pair)) }.getOrElse(TermNodeRangeSet.empty))
     }
     tuple.copy(_2 = disjRangeSets2)
@@ -143,36 +143,83 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
       case TermLeaf(varName, varIdx) =>
         rangeSets.get(varName).map {
           rs =>
-            (depthRangeSets2.headOption.map(rs.swapPairsWithMyVarIndex(varIdx).superset).getOrElse(rs.swapPairsWithMyVarIndex(varIdx)))
+            (depthRangeSets2.headOption.map(rs.withValuesFromVarIndex(varIdx).superset).getOrElse(rs.withValuesFromVarIndex(varIdx)))
         }.getOrElse(TermNodeRangeSet.empty)
     }
   }
   
-  private def checkVarIndexSetsForConjunction(myVarIdxs: Set[Int], otherVarIdxSet: Set[Int], node: TermNode)(varNames: Set[String]): Option[Set[String]] =
-    node match {
-      case TermBranch(childs) =>
-        childs.foldLeft(some(varNames)) {
-          case (Some(varNames2), child) =>
-            checkVarIndexSetsForDisjunction(myVarIdxs, otherVarIdxSet, child)(varNames2)
-          case (None, _)                =>
-            none
-        }
-      case TermLeaf(varName, varIdx) =>
-        checkVarIndexSetsForDisjunction(myVarIdxs, otherVarIdxSet, node)(varNames)
-    }
+  private def generateCountGraphForConjunction(otherVarIdxs: Map[Int, Set[Int]], node: TermNode, isSuperterm: Boolean)(tuple: (CounterGraph[CounterGraphLocation], Set[(CounterGraphLocation, CounterGraphLocation)], Map[Int, String])): Option[(CounterGraph[CounterGraphLocation], Set[(CounterGraphLocation, CounterGraphLocation)], Map[Int, String])] =
+	node match {
+	  case TermBranch(childs)        =>
+	    (for(fvi <- node.firstIndex; lvi <- node.lastIndex) yield (fvi, lvi)) match {
+	      case Some((firstVarIdx, lastVarIdx)) =>
+	        val uLoc = CounterGraphLocation(TermNodeRange(firstVarIdx, lastVarIdx), isSuperterm)
+	        childs.foldLeft(some(tuple)) {
+	          case (Some(newTuple), child) =>
+	            generateCountGraphForDisjunction(otherVarIdxs, child, isSuperterm)(newTuple) match {
+	              case Some((newG2, newEs2, newVns2)) =>
+    	            for(fvi2 <- child.firstIndex; lvi2 <- child.lastIndex) yield {
+                      val vLoc = CounterGraphLocation(TermNodeRange(fvi2, lvi2), isSuperterm)
+                      (newG2.withTwoEdges(vLoc, uLoc), newEs2, newVns2)
+                    }
+	              case None                           =>
+	                none
+	            }
+	          case (None, _)               =>
+	            none
+	        }.map { case (g2, es2, vns2) => (if(childs.size > 1) g2.withCount(uLoc, 1) else g2, es2, vns2) }
+	      case None                            =>
+	        none
+	    }
+	  case TermLeaf(varName, varIdx) =>
+	    generateCountGraphForDisjunction(otherVarIdxs, node, isSuperterm)(tuple)
+	}
 
-  private def checkVarIndexSetsForDisjunction(myVarIdxs: Set[Int], otherVarIdxSet: Set[Int], node: TermNode)(varNames: Set[String]): Option[Set[String]] =
-    node match {
-      case TermBranch(childs) =>
-        childs.foldLeft(none[Set[String]]) {
-          case (None, child)    =>
-            checkVarIndexSetsForConjunction(myVarIdxs, otherVarIdxSet, child)(varNames)
-          case (optVarNames, _) =>
-            optVarNames
-        }
-      case TermLeaf(varName, varIdx) =>
-        if(myVarIdxs.contains(varIdx) && otherVarIdxSet.contains(varIdx)) some(varNames + varName) else none
+  private def generateCountGraphForDisjunction(otherVarIdxs: Map[Int, Set[Int]], node: TermNode, isSuperterm: Boolean)(tuple: (CounterGraph[CounterGraphLocation], Set[(CounterGraphLocation, CounterGraphLocation)], Map[Int, String])): Option[(CounterGraph[CounterGraphLocation], Set[(CounterGraphLocation, CounterGraphLocation)], Map[Int, String])] =
+	node match {
+	  case TermBranch(childs)        =>
+	    (for(fvi <- node.firstIndex; lvi <- node.lastIndex) yield (fvi, lvi)) match {
+	      case Some((firstVarIdx, lastVarIdx)) =>
+	        val uLoc = CounterGraphLocation(TermNodeRange(firstVarIdx, lastVarIdx), isSuperterm)
+	        childs.foldLeft(some(tuple)) {
+	          case (Some(newTuple), child) =>
+	            generateCountGraphForConjunction(otherVarIdxs, child, isSuperterm)(newTuple) match {
+	              case Some((newG2, newEs2, newVns2)) =>
+    	            for(fvi2 <- child.firstIndex; lvi2 <- child.lastIndex) yield {
+                      val vLoc = CounterGraphLocation(TermNodeRange(fvi2, lvi2), isSuperterm)
+                      (newG2.withTwoEdges(vLoc, uLoc), newEs2, newVns2)
+                    }
+	              case None                           =>
+	                none
+	            }
+	          case (None, _)               =>
+	            none
+	        }.map { case (g2, es2, vns2) => (if(childs.size > 1) g2.withCount(uLoc, childs.size) else g2, es2, vns2) }
+	      case None                            =>
+	        none
+	    }
+	  case TermLeaf(varName, varIdx) =>
+	    val (g, es, vns) = tuple
+	    val vLoc = CounterGraphLocation(TermNodeRange(varIdx, varIdx), isSuperterm)
+	    if(otherVarIdxs.contains(varIdx)) {
+	      val es2 =  otherVarIdxs.get(varIdx).toSet.flatMap { 
+	        _.map { i => vLoc -> CounterGraphLocation(TermNodeRange(i, i), !isSuperterm) }
+	      }
+	      some((g.withCount(vLoc, 1), es ++ es2, vns + (varIdx -> varName)))
+	    } else
+	      some((g.withCount(vLoc, 0), es, vns))
+	}
+  
+  private def counterGraphWithTwoVarEdgeSets(graph: CounterGraph[CounterGraphLocation], edges1: Set[(CounterGraphLocation, CounterGraphLocation)], edges2: Set[(CounterGraphLocation, CounterGraphLocation)]) = {
+    val swappedEdges2 = edges2.map { _.swap }
+    val intersectedEdges = edges1 & swappedEdges2
+    val otherEdges = (edges1 | swappedEdges2) &~ intersectedEdges
+    val otherVLocs = otherEdges.flatMap { p => Set(p._1, p._2) } -- intersectedEdges.flatMap { p => Set(p._1, p._2) }
+    val graph2 = intersectedEdges.foldLeft(graph) {
+      (newGraph, edge) => newGraph.withTwoEdges(edge._1, edge._2)
     }
+    otherVLocs.foldLeft(graph2) { _.withCount(_, 0) }
+  }
   
   private def checkSuperconjunctionNodeFromTerms(term1: MatchingTerm, term2: MatchingTerm, isFirstTry: Boolean) =
     (term1.conjNode, term2.conjNode) match {
@@ -206,14 +253,47 @@ class MatchingTermMatcher extends Matcher[MatchingTerm]
     val conjRangeSet = checkSuperconjunctionNodeFromTerms(term1, term2, isFirstTry)
     val disjRangeSet = checkSuperdisjunctionNodeFromTerms(term2, term1, isFirstTry)
     if(!conjRangeSet.isEmpty && !disjRangeSet.isEmpty) {
-      val conjMyVarIdxs = conjRangeSet.varIndexSeqPair.myVarIdxs.toSet
-      val disjOtherVarIdxs = disjRangeSet.varIndexSeqPair.otherVarIdxs.toSet
-      val disjMyVarIdxs = disjRangeSet.varIndexSeqPair.myVarIdxs.toSet
-      val conjOtherVarIdxs = conjRangeSet.varIndexSeqPair.otherVarIdxs.toSet
+      val conjOtherVarIdxs = conjRangeSet.value.varIdxPairs.toSet.foldLeft(Map[Int, Set[Int]]()) {
+        case (is, (i, j)) => is |+| Map(i -> Set(j))
+      }
+      val disjOtherVarIdxs = disjRangeSet.value.varIdxPairs.toSet.foldLeft(Map[Int, Set[Int]]()) {
+        case (is, (i, j)) => is |+| Map(i -> Set(j))
+      }
       for {
-        conjVarNames <- checkVarIndexSetsForConjunction(conjMyVarIdxs, disjOtherVarIdxs, term1.conjNode)(Set())
-        disjVarNames <- checkVarIndexSetsForDisjunction(disjMyVarIdxs, conjOtherVarIdxs, term2.conjNode)(Set())
-      } yield (conjVarNames | disjVarNames)
+        (graph, conjEdges, conjVarNames) <- generateCountGraphForConjunction(conjOtherVarIdxs, term1.conjNode, true)((CounterGraph.empty, Set(), Map()))
+        (graph2, disjEdges, disjVarNames) <- generateCountGraphForDisjunction(disjOtherVarIdxs, term2.conjNode, false)((graph, Set(), Map()))
+        varNames2 <- {
+          val graph3 = counterGraphWithTwoVarEdgeSets(graph2, conjEdges, disjEdges)
+          graph3.decreaseCounters.flatMap {
+            graph4 =>
+              for {
+                conjLastVarIdx <- term1.conjNode.lastIndex
+                disjLastVarIdx <- term2.conjNode.lastIndex
+                varNames <- {
+                  val vLoc = CounterGraphLocation(TermNodeRange(0, conjLastVarIdx), true)
+                  val uLoc = CounterGraphLocation(TermNodeRange(0, disjLastVarIdx), false)
+                  (for(v <- graph4.vertices.get(vLoc); u <- graph4.vertices.get(uLoc)) yield (v, u)).flatMap {
+                    case (v, u) =>
+                      if(v.count > 0 && u.count > 0) {
+                        val conjVarNames2 = conjVarNames.flatMap {
+                          case (idx, name) =>
+                            val tLoc = CounterGraphLocation(TermNodeRange(idx, idx), true)
+                            if(graph4.vertices.get(tLoc).map { _.count > 0 }.getOrElse(false)) Set(name) else Set[String]()
+                        }
+                        val disjVarNames2 = disjVarNames.flatMap {
+                          case (idx, name) =>
+                            val tLoc = CounterGraphLocation(TermNodeRange(idx, idx), false)
+                            if(graph4.vertices.get(tLoc).map { _.count > 0 }.getOrElse(false)) Set(name) else Set[String]()
+                        }
+                        some(conjVarNames2.toSet | disjVarNames2.toSet)
+                      } else
+                        none
+                  }
+                }
+              } yield varNames
+          }
+        }
+      } yield varNames2
     } else
       none
   }
